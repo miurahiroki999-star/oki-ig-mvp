@@ -33,9 +33,9 @@ const COLOR_HIGHLIGHT_BORDER = '#D6EFD0'
 
 type BackgroundKind = 'top' | 'middle' | 'cta'
 const BACKGROUND_ASSETS: Record<BackgroundKind, string> = {
-  top: '/assets/design/bg-top.svg',
-  middle: '/assets/design/bg-middle.svg',
-  cta: '/assets/design/bg-cta.svg'
+  top: '/assets/design/bg-top.png',
+  middle: '/assets/design/bg-middle.png',
+  cta: '/assets/design/bg-cta.png'
 }
 
 const backgroundCache = new Map<BackgroundKind, Promise<HTMLImageElement | null>>()
@@ -679,29 +679,47 @@ function renderPointStyleSlide(
     y += lineHeight
   })
 
-  // 箇条書き：本文と同じ明朝体。フッターと重ならない位置に強制収める。
+  // 箇条書き：本文から離しすぎず、中央寄せの塊として自然に配置する。
   if (hasBullets) {
     const bulletFont = `400 ${bulletFontSize}px ${BODY_FONT}`
     ctx.font = bulletFont
     ctx.textAlign = 'left'
-    const bMaxW = Math.min(w * 0.68, 700)
-    const bulletLeft = w / 2 - bMaxW / 2
-    const bulletBlockH = usableBullets.length * bulletLineHeight
-    let by = Math.max(y + 36, h * 0.66)
-    by = Math.min(by, footerTopY - bulletBlockH - 14)
 
-    usableBullets.forEach((b) => {
+    const bulletWrapWidth = Math.min(w * 0.56, 560)
+    const markerGap = 26
+    const bulletGroups = usableBullets.map((b) => {
+      const wrapped = wrapText(ctx, b, bulletWrapWidth)
+      const width = Math.max(...wrapped.map((line) => ctx.measureText(`・${line}`).width), 1)
+      return { text: b, wrapped, width }
+    })
+
+    const maxBulletWidth = Math.max(...bulletGroups.map((g) => g.width), 1)
+    const bulletBlockWidth = Math.min(maxBulletWidth + markerGap, bulletWrapWidth + markerGap)
+    const bulletBlockHeight = bulletGroups.reduce((sum, g) => sum + g.wrapped.length * bulletLineHeight, 0) + (bulletGroups.length - 1) * 10
+
+    const textAnchorLeft = Math.max(120, Math.min(leftX + 10, w / 2 - bulletBlockWidth / 2))
+    const centeredLeft = w / 2 - bulletBlockWidth / 2 + markerGap
+    const bulletLeft = Math.max(130, Math.min(centeredLeft, textAnchorLeft + 40))
+
+    let by = y + 24
+    by = Math.max(by, h * 0.60)
+    by = Math.min(by, footerTopY - bulletBlockHeight - 10)
+
+    bulletGroups.forEach((group) => {
+      const markerY = by + Math.max(14, bulletLineHeight * 0.38)
       ctx.save()
       ctx.fillStyle = COLOR_LIGHT_GREEN
       ctx.globalAlpha = 0.9
       ctx.beginPath()
-      ctx.ellipse(bulletLeft - 24, by - 11, 12, 7, -0.55, 0, Math.PI * 2)
+      ctx.ellipse(bulletLeft - markerGap, markerY - 2, 12, 7, -0.55, 0, Math.PI * 2)
       ctx.fill()
       ctx.restore()
 
-      ctx.fillStyle = COLOR_TEXT_MAIN
-      ctx.fillText(`・${b}`, bulletLeft, by)
-      by += bulletLineHeight
+      group.wrapped.forEach((line, lineIndex) => {
+        ctx.fillStyle = COLOR_TEXT_MAIN
+        ctx.fillText(lineIndex === 0 ? `・${line}` : `　${line}`, bulletLeft, by + lineIndex * bulletLineHeight)
+      })
+      by += group.wrapped.length * bulletLineHeight + 10
     })
   }
 
