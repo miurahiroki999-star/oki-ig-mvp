@@ -1,4 +1,4 @@
-// 共通型定義
+// 共通型定義（カルーセル投稿生成アプリ版）
 
 export type Theme =
   | '人間関係'
@@ -11,81 +11,78 @@ export type Theme =
 
 export const ALL_THEMES: Theme[] = ['人間関係', '健康', 'お金', '使命', 'ご縁', '瞑想', '無料診断']
 
-export type FeedRole = '問題提起' | '教育気づき' | '信頼形成導線'
-export type StoryRole = '問題提起' | '教育気づき' | '日常人柄' | '信頼形成' | 'LINE診断誘導'
+// カルーセル1投稿=8枚基本（山添さん型TTP構成）
+export type SlideRole =
+  | 'TOP'
+  | '問題提起'
+  | '相談'
+  | '見立て'
+  | '具体例'
+  | '気づき'
+  | '行動提案'
+  | 'CTA'
 
-export type PostKind = 'フィード' | 'ストーリーズ'
+export const SLIDE_ROLE_ORDER: SlideRole[] = ['TOP', '問題提起', '相談', '見立て', '具体例', '気づき', '行動提案', 'CTA']
 
-export interface GeneratedPost {
+// TOP/CTAスライドは headline+subheadline、それ以外(中ページ)は label+mainText+highlights+bullets を使う
+export interface Slide {
+  index: number // 1始まり
+  role: SlideRole
+  label?: string // 中ページの見出し(基本 "POINT")
+  headline?: string // TOP/CTAの大見出し(改行込み)
+  subheadline?: string // TOP/CTAの小見出し
+  mainText?: string // 中ページの本文(改行込み)
+  highlights?: string[] // mainText内で淡いグリーンハイライトする語
+  bullets?: string[] // 下部の補足箇条書き
+  imageDataUrl?: string
+}
+
+export interface CarouselPost {
   id: string
   dayIndex: number // このセット内の◯日目 (1始まり)
-  orderIndex: number // このカテゴリ内の◯回目 (1始まり)
-  kind: PostKind
-  role: FeedRole | StoryRole
+  postIndex: number // その日の◯投稿目 (1始まり、標準1〜3)
   theme: Theme
-  title: string // 画像内タイトル(強い一言)
-  body: string // 投稿本文 or ストーリーズ添え文
-  approach: string // 切り口(重複回避用ラベル)
-  claim: string // 主張(重複回避用ラベル)
-  cta: string
+  postTitle: string // 管理用のタイトル(TOP見出しの要約)
+  slides: Slide[]
+  caption: string // 投稿欄本文(完成形・そのままコピペ用)
+  captionLead: string // 投稿欄本文の冒頭部分のみ(重複回避判定用)
   hashtags: string[]
-  templateId: string
-  imageDataUrl?: string
   regenerationCount: number
   createdAt: string
   printDate: string // 打ち出し日 YYYY-MM-DD
   printRun: number // 打ち出し回
   source: 'ai' | 'local' // OpenAI生成かローカルフレーズバンク生成か
-  photoId?: string // 本人写真を背景に使った場合の写真素材ID(優先度B拡張)
 }
 
 export interface GenerationBatch {
   printDate: string
   printRun: number
   days: number
+  postsPerDay: number
   memo: string
-  posts: GeneratedPost[]
+  theme?: Theme | 'auto'
+  posts: CarouselPost[]
   createdAt: string
 }
 
-export interface BackgroundTemplate {
-  id: string
-  kind: PostKind
-  name: string
-  // 単純な見た目パラメータ（Canvas描画用）
-  // whitespace: 白場中心、装飾ほぼなし / leaf: 隅に淡い葉の曲線 / line: 細い罫線フレーム
-  style: 'whitespace' | 'leaf' | 'line'
-  colorFrom: string
-  colorTo: string
-  accent: string
-  createdAt: string
-}
-
-// 信頼形成・導線系投稿で本人写真を背景として使う際に、
-// どのタグの写真を優先的に使うかを役割ごとに紐づけるための定義(優先度B拡張)。
-export const PHOTO_ELIGIBLE_ROLES: string[] = ['信頼形成導線', '信頼形成', 'LINE診断誘導']
-
-export interface PhotoAsset {
-  id: string
-  name: string
-  dataUrl: string
-  tags: string[]
-  createdAt: string
-}
-
+// 投稿欄本文の固定ブロック(service/Present/profile/よくある相談)。
+// 応樹さんから素材回収中のため、設定画面で差し替えられるようにする(初期実装は仮置き文言)。
 export interface AppSettings {
   displayName: string
   title: string
   lineUrl: string
   openaiModel: string
-  brandColorFrom: string
-  brandColorTo: string
   forbiddenWords: string[]
   baseHashtags: string[]
-  usePhotosForTrustPosts: boolean // 信頼形成・導線系投稿で登録済み本人写真を背景に使うか(優先度B拡張・既定はOFF)
+  postsPerDay: number // 標準3固定（内部設定として変更可）
+  slidesPerPost: number // 基本8、テーマにより9〜10まで可変
+  testimonialBlock: string // よくある相談 / お客様の声
+  serviceBlock: string // service紹介
+  presentBlock: string // Present導線
+  profileBlock: string // profile紹介
 }
 
-export type HistoryEntryType = 'generated' | 'regenerated' | 'edited'
+export type HistoryEntryType = 'generated' | 'regenerated'
 
 export interface HistoryEntry {
   id: string
@@ -93,18 +90,11 @@ export interface HistoryEntry {
   printDate: string
   printRun: number
   dayIndex: number
-  orderIndex: number
-  kind: PostKind
+  postIndex: number
   theme: Theme
-  role: string
-  title: string
-  body: string
-  approach: string
-  claim: string
-  cta: string
-  hashtags: string[]
-  templateId: string
-  regenerationCount: number
-  entryType: HistoryEntryType // 生成済み / 再生成済み / 編集済み(上書きせず全て残す)
+  postTitle: string
+  topHeadline: string
+  captionLead: string
+  entryType: HistoryEntryType // 生成済み / 再生成済み(上書きせず全て残す)
   source: 'ai' | 'local'
 }

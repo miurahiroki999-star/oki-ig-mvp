@@ -1,17 +1,11 @@
 import React, { useState } from 'react'
 import GenerateScreen from './components/GenerateScreen'
-import TemplateManager from './components/TemplateManager'
-import PhotoManager from './components/PhotoManager'
-import HistoryScreen from './components/HistoryScreen'
 import SettingsScreen from './components/SettingsScreen'
 
-type Tab = 'generate' | 'templates' | 'photos' | 'history' | 'settings'
+type Tab = 'generate' | 'settings'
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'generate', label: '投稿生成' },
-  { key: 'templates', label: '背景テンプレート' },
-  { key: 'photos', label: '写真素材集' },
-  { key: 'history', label: '履歴' },
+  { key: 'generate', label: '投稿生成・出力確認' },
   { key: 'settings', label: '設定' }
 ]
 
@@ -22,8 +16,8 @@ export default function App() {
     <div className="app-shell">
       <div className="app-header">
         <div className="app-title">
-          応樹さん Instagram投稿生成
-          <small>人生の質向上コンサルタント｜フィード＋ストーリーズを量産</small>
+          吉澤瑛さん カルーセル投稿生成
+          <small>人生の質向上コンサルタント｜1日3回カルーセル投稿を量産</small>
         </div>
         <div className="tabs">
           {TABS.map((t) => (
@@ -35,9 +29,6 @@ export default function App() {
       </div>
 
       {tab === 'generate' && <GenerateScreen />}
-      {tab === 'templates' && <TemplateManager />}
-      {tab === 'photos' && <PhotoManager />}
-      {tab === 'history' && <HistoryScreen />}
       {tab === 'settings' && <SettingsScreen />}
     </div>
   )

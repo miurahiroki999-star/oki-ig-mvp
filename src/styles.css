@@ -222,3 +222,86 @@ textarea.prompt-box {
   font-size: 12.5px;
   font-family: monospace;
 }
+
+/* ---------- カルーセル投稿カード ---------- */
+.carousel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.carousel-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px 18px;
+  gap: 10px;
+}
+
+.carousel-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.carousel-main-preview {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #eef6ef;
+  border: 1px solid var(--border-soft);
+}
+.carousel-main-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.carousel-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-sub);
+  font-size: 13px;
+}
+
+.carousel-thumb-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.carousel-thumb {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  aspect-ratio: 4 / 5;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid var(--border-soft);
+  background: #eef6ef;
+  cursor: pointer;
+  padding: 0;
+}
+.carousel-thumb.active { border-color: #8fd39c; }
+.carousel-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.carousel-thumb-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 11px;
+  color: var(--text-sub);
+}
+.carousel-thumb-label {
+  position: absolute;
+  bottom: 1px;
+  right: 3px;
+  font-size: 9px;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0,0,0,0.6);
+}
