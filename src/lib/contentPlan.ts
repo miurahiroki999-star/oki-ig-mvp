@@ -146,6 +146,8 @@ export interface ContentResult {
 }
 
 // ローカルフレーズバンクから core content(本文の中身のみ)を組み立てる
+// フィードは「冒頭→悩み描写→原因→接続→思想→安心→警鐘→自己認識の重要性」の
+// 山添TTP長文構成になるよう、段落ごとに空行を入れて組み立てる(900〜1,600文字目安)。
 function localCore(roleDef: RoleDef, theme: Theme, history: HistoryEntry[], seed: number): CoreContent {
   if (roleDef.bankKey === null) {
     return { title: '人生の質向上チェック', approach: 'LINE誘導固定', claim: 'LINE診断誘導', message: '' }
@@ -153,7 +155,16 @@ function localCore(roleDef: RoleDef, theme: Theme, history: HistoryEntry[], seed
   if (roleDef.kind === 'フィード') {
     const variant: FeedVariant = pickUnusedVariant(getFeedBank(theme, roleDef.bankKey as any), history, seed)
     const lead = leadConnectors[seed % leadConnectors.length]
-    const message = [`${lead}${variant.lead}`, variant.empathy, variant.insight, variant.connect].join('\n')
+    const message = [
+      `${lead}${variant.lead}`,
+      variant.worryScene,
+      variant.whyItHappens,
+      variant.connect,
+      variant.philosophy,
+      variant.reassurance,
+      variant.warning,
+      variant.selfAwareness
+    ].join('\n\n')
     return { title: variant.title, approach: variant.approach, claim: variant.claim, message }
   }
   const variant: StoryVariant = pickUnusedVariant(getStoryBank(theme, roleDef.bankKey as any), history, seed)

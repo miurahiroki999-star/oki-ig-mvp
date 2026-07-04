@@ -98,7 +98,7 @@ export default function GenerateScreen() {
           const tpl = pickTemplate(p.kind, templates, combinedHistory, pickedTemplateIdsThisBatch)
           pickedTemplateIdsThisBatch.push(tpl.id)
           const photo = pickPhotoIfEligible(p.role, photos, usedPhotoIdsThisBatch)
-          const imageDataUrl = await renderPostImage(p.kind, p.title, tpl, seedBase + p.dayIndex + p.orderIndex, photo)
+          const imageDataUrl = await renderPostImage(p.kind, p.title, tpl, seedBase + p.dayIndex + p.orderIndex, photo, p.role)
 
           const full: GeneratedPost = {
             ...(p as any),
@@ -146,7 +146,7 @@ export default function GenerateScreen() {
     const settings = getSettings()
     const photo =
       settings.usePhotosForTrustPosts && isPhotoEligible(updated.role) ? pickPhotoForRole(updated.role, photos, []) : undefined
-    const imageDataUrl = await renderPostImage(updated.kind, updated.title, tpl, Date.now() % 1000, photo)
+    const imageDataUrl = await renderPostImage(updated.kind, updated.title, tpl, Date.now() % 1000, photo, updated.role)
     persistUpdatedPost({ ...updated, imageDataUrl, photoId: photo?.id }, 'edited')
   }
 
@@ -160,7 +160,7 @@ export default function GenerateScreen() {
     const tpl = pickTemplate(post.kind, templates, history, [])
     const photos = getPhotos()
     const photo = settings.usePhotosForTrustPosts && isPhotoEligible(post.role) ? pickPhotoForRole(post.role, photos, []) : undefined
-    const imageDataUrl = await renderPostImage(post.kind, result.title, tpl, seed, photo)
+    const imageDataUrl = await renderPostImage(post.kind, result.title, tpl, seed, photo, post.role)
 
     const updated: GeneratedPost = {
       ...post,

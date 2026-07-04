@@ -32,8 +32,8 @@ export const defaultSettings: AppSettings = {
   title: '人生の質向上コンサルタント',
   lineUrl: 'https://lin.ee/ybEF6h1',
   openaiModel: 'gpt-5.4-mini',
-  brandColorFrom: '#eaf7ec',
-  brandColorTo: '#bfe8c4',
+  brandColorFrom: '#FAFCF8',
+  brandColorTo: '#8EDB84',
   forbiddenWords: ['絶対に稼げます', 'これで治ります', '必ず変わります', '医療効果を保証'],
   baseHashtags: [
     '人生の質向上',
@@ -57,21 +57,19 @@ export function saveSettings(s: AppSettings) {
 }
 
 // ---------- 背景テンプレート ----------
+// 「白ベース＋明るく通ったライトグリーン＋透明感＋余白」の正本に基づく厳選3種×2kind。
+// 量より質を優先し、くすみ緑・苔色・ドット柄などの安っぽい装飾は採用しない。
 function defaultTemplates(): BackgroundTemplate[] {
-  const feedStyles: BackgroundTemplate['style'][] = ['gradient', 'blob', 'wave', 'frame', 'dot']
   const now = new Date().toISOString()
-  const palette = [
-    ['#f4fbf3', '#cdeed0'],
-    ['#eefaf1', '#bfe8c4'],
-    ['#f7fbf4', '#d7edd6'],
-    ['#eef9f2', '#c8ecd6'],
-    ['#f5faf0', '#d2e9c9']
+  // [colorFrom(ベース白〜ごく淡いグリーン), colorTo(明るいライトグリーン), accent(装飾用の濃いめグリーン/ゴールド)]
+  const palette: [BackgroundTemplate['style'], string, string, string][] = [
+    ['whitespace', '#FFFFFF', '#F2FAF0', '#8EDB84'],
+    ['leaf', '#FAFCF8', '#EDF9EA', '#64C96A'],
+    ['line', '#F8FBF7', '#EAF8E8', '#93E38B']
   ]
   const templates: BackgroundTemplate[] = []
   ;(['フィード', 'ストーリーズ'] as const).forEach((kind) => {
-    for (let i = 0; i < 10; i++) {
-      const style = feedStyles[i % feedStyles.length]
-      const [colorFrom, colorTo] = palette[i % palette.length]
+    palette.forEach(([style, colorFrom, colorTo, accent], i) => {
       templates.push({
         id: `${kind}-tpl-${i + 1}`,
         kind,
@@ -79,10 +77,10 @@ function defaultTemplates(): BackgroundTemplate[] {
         style,
         colorFrom,
         colorTo,
-        accent: '#e7d9a8',
+        accent,
         createdAt: now
       })
-    }
+    })
   })
   return templates
 }

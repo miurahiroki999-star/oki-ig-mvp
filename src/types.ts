@@ -53,7 +53,8 @@ export interface BackgroundTemplate {
   kind: PostKind
   name: string
   // 単純な見た目パラメータ（Canvas描画用）
-  style: 'gradient' | 'blob' | 'wave' | 'frame' | 'dot'
+  // whitespace: 白場中心、装飾ほぼなし / leaf: 隅に淡い葉の曲線 / line: 細い罫線フレーム
+  style: 'whitespace' | 'leaf' | 'line'
   colorFrom: string
   colorTo: string
   accent: string

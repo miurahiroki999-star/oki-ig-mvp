@@ -6,9 +6,9 @@ export default function TemplateManager() {
   const [templates, setTemplates] = useState<BackgroundTemplate[]>(getTemplates())
   const [kind, setKind] = useState<PostKind>('フィード')
   const [name, setName] = useState('')
-  const [colorFrom, setColorFrom] = useState('#eefaf1')
-  const [colorTo, setColorTo] = useState('#bfe8c4')
-  const [style, setStyle] = useState<BackgroundTemplate['style']>('gradient')
+  const [colorFrom, setColorFrom] = useState('#FAFCF8')
+  const [colorTo, setColorTo] = useState('#EDF9EA')
+  const [style, setStyle] = useState<BackgroundTemplate['style']>('whitespace')
 
   function persist(next: BackgroundTemplate[]) {
     setTemplates(next)
@@ -23,7 +23,7 @@ export default function TemplateManager() {
       style,
       colorFrom,
       colorTo,
-      accent: '#e7d9a8',
+      accent: '#8EDB84',
       createdAt: new Date().toISOString()
     }
     persist([...templates, tpl])
@@ -52,11 +52,9 @@ export default function TemplateManager() {
         <div className="form-row">
           <label>スタイル</label>
           <select value={style} onChange={(e) => setStyle(e.target.value as any)}>
-            <option value="gradient">グラデーションのみ</option>
-            <option value="blob">やわらかな曲線（blob）</option>
-            <option value="wave">波形</option>
-            <option value="frame">フレーム</option>
-            <option value="dot">ドット</option>
+            <option value="whitespace">白場中心（whitespace）</option>
+            <option value="leaf">淡い葉モチーフ（leaf）</option>
+            <option value="line">細い罫線フレーム（line）</option>
           </select>
         </div>
         <div className="form-row">
