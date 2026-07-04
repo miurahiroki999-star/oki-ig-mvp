@@ -29,6 +29,35 @@ const COLOR_ACCENT_GOLD = '#B79A5D'
 const COLOR_HIGHLIGHT_BG = '#EAF7E4'
 const COLOR_HIGHLIGHT_BORDER = '#D6EFD0'
 
+
+
+type BackgroundKind = 'top' | 'middle' | 'cta'
+const BACKGROUND_ASSETS: Record<BackgroundKind, string> = {
+  top: '/assets/design/bg-top.svg',
+  middle: '/assets/design/bg-middle.svg',
+  cta: '/assets/design/bg-cta.svg'
+}
+
+const backgroundCache = new Map<BackgroundKind, Promise<HTMLImageElement | null>>()
+
+function loadImageAsset(src: string): Promise<HTMLImageElement | null> {
+  if (typeof window === 'undefined') return Promise.resolve(null)
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
+
+function loadBackgroundAsset(kind: BackgroundKind): Promise<HTMLImageElement | null> {
+  const cached = backgroundCache.get(kind)
+  if (cached) return cached
+  const promise = loadImageAsset(BACKGROUND_ASSETS[kind])
+  backgroundCache.set(kind, promise)
+  return promise
+}
+
 const FONT_LOAD_SPECS = [
   '400 28px "Noto Serif JP"',
   '500 34px "Noto Serif JP"',
@@ -72,7 +101,87 @@ function roundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w:
 }
 
 // ---------- 背景・装飾 ----------
-function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
+
+// シード付き擬似乱数（量産しても再現性を保つ）
+function makeRng(seed: number) {
+  let s = seed >>> 0
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0
+    return s / 4294967296
+  }
+}
+
+// 紙のうっすらした質感。極小の粒を低アルファで散らしたタイルを敷き詰める。
+let paperPatternCache: CanvasPattern | null = null
+function getPaperPattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  if (paperPatternCache) return paperPatternCache
+  const size = 160
+  const tile = document.createElement('canvas')
+  tile.width = size
+  tile.height = size
+  const tctx = tile.getContext('2d')!
+  const rng = makeRng(7)
+  for (let i = 0; i < 900; i++) {
+    const x = rng() * size
+    const y = rng() * size
+    const r = rng() * 0.7 + 0.2
+    const tone = rng() > 0.5 ? '46,58,52' : '255,255,255'
+    tctx.fillStyle = `rgba(${tone},${(rng() * 0.05 + 0.02).toFixed(3)})`
+    tctx.beginPath()
+    tctx.arc(x, y, r, 0, Math.PI * 2)
+    tctx.fill()
+  }
+  paperPatternCache = ctx.createPattern(tile, 'repeat')
+  return paperPatternCache
+}
+
+function drawPaperGrain(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const pattern = getPaperPattern(ctx)
+  if (!pattern) return
+  ctx.save()
+  ctx.globalAlpha = 0.55
+  ctx.fillStyle = pattern
+  ctx.fillRect(0, 0, w, h)
+  ctx.restore()
+}
+
+// 不定形の水彩ブロブ（ゆらぎのある楕円）をぼかして滲ませる。
+function drawWatercolorBlob(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  color: string,
+  alpha: number,
+  blurPx: number,
+  seed: number
+) {
+  const rng = makeRng(seed)
+  const points = 10
+  ctx.save()
+  ctx.filter = `blur(${blurPx}px)`
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = color
+  ctx.beginPath()
+  for (let i = 0; i <= points; i++) {
+    const a = (i / points) * Math.PI * 2
+    const wobble = 0.78 + rng() * 0.4
+    const x = cx + Math.cos(a) * rx * wobble
+    const y = cy + Math.sin(a) * ry * wobble
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bgAsset?: CanvasImageSource | null) {
+  if (bgAsset) {
+    ctx.drawImage(bgAsset, 0, 0, w, h)
+    return
+  }
   ctx.fillStyle = COLOR_BG
   ctx.fillRect(0, 0, w, h)
 
@@ -90,43 +199,66 @@ function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, w, h)
   })
+
+  // 水彩のにじみ：角に不定形のライトグリーンの滲みを重ねる。
+  // 「緑の画面」ではなく「白い紙にグリーンの空気が乗る」印象を狙う弱さに保つ。
+  drawWatercolorBlob(ctx, w * 0.06, h * 0.05, w * 0.30, h * 0.20, COLOR_LIGHT_GREEN, 0.10, 46, 11)
+  drawWatercolorBlob(ctx, w * 0.02, h * 0.10, w * 0.20, h * 0.14, COLOR_LIGHT_GREEN_2, 0.08, 30, 23)
+  drawWatercolorBlob(ctx, w * 0.97, h * 0.06, w * 0.26, h * 0.18, COLOR_LIGHT_GREEN, 0.09, 44, 37)
+  drawWatercolorBlob(ctx, w * 0.03, h * 0.96, w * 0.28, h * 0.20, COLOR_LIGHT_GREEN_2, 0.10, 48, 53)
+  drawWatercolorBlob(ctx, w * 0.98, h * 0.95, w * 0.30, h * 0.20, COLOR_LIGHT_GREEN, 0.10, 46, 61)
+
+  // 紙の質感をごく薄く重ねる（装飾・文字より下のレイヤー）。
+  drawPaperGrain(ctx, w, h)
 }
 
 function drawFrame(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.save()
-  ctx.strokeStyle = COLOR_FRAME
-  ctx.globalAlpha = 0.75
-  ctx.lineWidth = 1.2
-  const pad = 32
-  roundedRectPath(ctx, pad, pad, w - pad * 2, h - pad * 2, 26)
-  ctx.stroke()
-
-  // 右上・左下に細い曲線。枠の硬さを抜く。
-  ctx.globalAlpha = 0.45
+  // 矩形の縁取りは置かず、右上・左下の細い一筆線だけを残す。
+  // 「囲まれた感じ」を出さずに余白へ静かな動きを添える。
+  ctx.globalAlpha = 0.4
   ctx.strokeStyle = COLOR_LIGHT_GREEN
-  ctx.lineWidth = 1.3
+  ctx.lineWidth = 1.2
+  ctx.lineCap = 'round'
   ctx.beginPath()
-  ctx.moveTo(w * 0.67, h * 0.04)
-  ctx.bezierCurveTo(w * 0.80, h * 0.10, w * 0.86, h * 0.02, w * 0.98, h * 0.10)
+  ctx.moveTo(w * 0.67, h * 0.045)
+  ctx.bezierCurveTo(w * 0.80, h * 0.105, w * 0.86, h * 0.025, w * 0.975, h * 0.10)
   ctx.stroke()
   ctx.beginPath()
-  ctx.moveTo(w * 0.02, h * 0.78)
-  ctx.bezierCurveTo(w * 0.15, h * 0.88, w * 0.12, h * 0.98, w * 0.34, h * 0.94)
+  ctx.moveTo(w * 0.025, h * 0.78)
+  ctx.bezierCurveTo(w * 0.15, h * 0.88, w * 0.12, h * 0.975, w * 0.34, h * 0.935)
   ctx.stroke()
   ctx.restore()
 }
 
 function drawLeaf(ctx: CanvasRenderingContext2D, len: number, width: number, color: string, alpha: number) {
+  const leafPath = () => {
+    ctx.beginPath()
+    ctx.moveTo(0, 0)
+    ctx.quadraticCurveTo(len * 0.32, -width, len, 0)
+    ctx.quadraticCurveTo(len * 0.32, width, 0, 0)
+    ctx.closePath()
+  }
+
+  // にじみ層：一回り大きく、ぼかしをかけて輪郭を溶かす。これで「貼った感」を消す。
   ctx.save()
-  ctx.globalAlpha = alpha
+  ctx.filter = 'blur(5px)'
+  ctx.globalAlpha = alpha * 0.5
   ctx.fillStyle = color
-  ctx.beginPath()
-  ctx.moveTo(0, 0)
-  ctx.quadraticCurveTo(len * 0.32, -width, len, 0)
-  ctx.quadraticCurveTo(len * 0.32, width, 0, 0)
-  ctx.closePath()
+  ctx.save()
+  ctx.scale(1.1, 1.22)
+  leafPath()
+  ctx.restore()
   ctx.fill()
-  ctx.globalAlpha = alpha * 0.35
+  ctx.restore()
+
+  // くっきり層：本体。にじみ層より弱めのアルファで水彩の重なりを出す。
+  ctx.save()
+  ctx.globalAlpha = alpha * 0.82
+  ctx.fillStyle = color
+  leafPath()
+  ctx.fill()
+  ctx.globalAlpha = alpha * 0.3
   ctx.strokeStyle = color
   ctx.lineWidth = Math.max(1, width * 0.055)
   ctx.beginPath()
@@ -371,10 +503,12 @@ function getHeadlineLines(ctx: CanvasRenderingContext2D, headline: string, maxWi
 }
 
 // ---------- TOP / CTA ----------
-function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, footerRight: string) {
-  fillBackground(ctx, w, h)
-  drawFrame(ctx, w, h)
-  drawCornerDecor(ctx, w, h)
+function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, footerRight: string, bgAsset?: CanvasImageSource | null) {
+  fillBackground(ctx, w, h, bgAsset)
+  if (!bgAsset) {
+    drawFrame(ctx, w, h)
+    drawCornerDecor(ctx, w, h)
+  }
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -429,10 +563,12 @@ function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: numb
   }
 }
 
-function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, displayName: string, title: string) {
-  fillBackground(ctx, w, h)
-  drawFrame(ctx, w, h)
-  drawCornerDecor(ctx, w, h)
+function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, displayName: string, title: string, bgAsset?: CanvasImageSource | null) {
+  fillBackground(ctx, w, h, bgAsset)
+  if (!bgAsset) {
+    drawFrame(ctx, w, h)
+    drawCornerDecor(ctx, w, h)
+  }
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -485,11 +621,14 @@ function renderPointStyleSlide(
   bullets: string[],
   displayName: string,
   title: string,
-  pageLabel: string
+  pageLabel: string,
+  bgAsset?: CanvasImageSource | null
 ) {
-  fillBackground(ctx, w, h)
-  drawFrame(ctx, w, h)
-  drawCornerDecor(ctx, w, h)
+  fillBackground(ctx, w, h, bgAsset)
+  if (!bgAsset) {
+    drawFrame(ctx, w, h)
+    drawCornerDecor(ctx, w, h)
+  }
 
   // 上部ラベル：明朝体で統一。色はライトグリーンのアクセントのみ。
   const labelY = h * 0.18
@@ -578,11 +717,13 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
   canvas.width = w
   canvas.height = h
   const ctx = canvas.getContext('2d')!
+  const bgKind: BackgroundKind = slide.role === 'TOP' ? 'top' : slide.role === 'CTA' ? 'cta' : 'middle'
+  const bgAsset = await loadBackgroundAsset(bgKind)
 
   if (slide.role === 'TOP') {
-    renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→')
+    renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset)
   } else if (slide.role === 'CTA') {
-    renderCtaSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', displayName, title)
+    renderCtaSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', displayName, title, bgAsset)
   } else {
     renderPointStyleSlide(
       ctx,
@@ -594,7 +735,8 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
       slide.bullets || [],
       displayName,
       title,
-      String(slide.index).padStart(2, '0')
+      String(slide.index).padStart(2, '0'),
+      bgAsset
     )
   }
   void totalSlides
