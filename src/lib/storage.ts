@@ -79,18 +79,50 @@ export const defaultSettings: AppSettings = {
   profileBlock: [
     '―――🌿profile―――',
     '',
-    '吉澤瑛',
-    '人生の質向上コンサルタント',
-    '株式会社エル・クオリティ代表取締役',
-    'Life Wellness Association代表'
-  ].join('\n')
+    '吉澤瑛（よしざわ あきら）',
+    '',
+    '株式会社エル・クオリティ 代表取締役',
+    'ライフウェルネス・アソシエーション 代表',
+    '',
+    '20年以上｜健康・心・人生の質向上に関わる活動',
+    '32年間｜手相・タロット・西洋占星術の鑑定',
+    '累計2万人以上｜鑑定実績',
+    '',
+    '健康商材の普及、瞑想指導、個人コンサルティング、',
+    'コミュニティ運営を通じて、',
+    '「より心地よく、より豊かに、自分らしく生きる人を増やす」',
+    'ことを使命として活動しています。',
+    '',
+    '身体・心・経済・人間関係・使命の領域を総合的にサポートし、',
+    '一人ひとりが本来持つ可能性を引き出す',
+    '実践的な伴走支援を行っています。',
+    '',
+    '独自プログラム「ダイヤモンド覚醒セッション」では、',
+    '生年月日や個性分析を活用しながら、',
+    '才能・強み・使命を明確化し、人生を加速させるサポートを提供しています。'
+  ].join('\\n')
 }
 
 export function getSettings(): AppSettings {
   // 旧バージョンのキーからの引き継ぎは行わず、常にカルーセル版の既定値を土台にする
   const saved = readJson<Partial<AppSettings> | null>(KEYS.settings, null)
   if (!saved) return defaultSettings
-  return { ...defaultSettings, ...saved }
+
+  const merged = { ...defaultSettings, ...saved }
+
+  // v11 profile migration:
+  // 旧profileBlockがブラウザのlocalStorageに残っている場合でも、
+  // 応樹さんから届いた正式プロフィールへ自動反映する。
+  const hasNewProfile =
+    typeof saved.profileBlock === 'string' &&
+    saved.profileBlock.includes('32年間') &&
+    saved.profileBlock.includes('累計2万人以上')
+
+  if (!hasNewProfile) {
+    merged.profileBlock = defaultSettings.profileBlock
+  }
+
+  return merged
 }
 export function saveSettings(s: AppSettings) {
   writeJson(KEYS.settings, s)
