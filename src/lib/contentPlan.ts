@@ -36,16 +36,38 @@ const themeKeywords: Record<Theme, string[]> = {
   無料診断: ['診断', 'チェック', '無料診断']
 }
 
-// テーマ指定がある場合はその日の3投稿すべてを同テーマに、無指定の場合は自動配分する
+// 1日3投稿は同じテーマを連続させず、朝・昼・夜で見え方を分散させる。
+// テーマ指定がある場合も、そのテーマを起点に関連テーマへ広げる（3本とも同テーマにはしない）。
+const companionThemes: Record<Theme, Theme[]> = {
+  健康: ['健康', '人間関係', '使命'],
+  お金: ['お金', '健康', '使命'],
+  人間関係: ['人間関係', '健康', 'ご縁'],
+  使命: ['使命', '健康', 'お金'],
+  ご縁: ['ご縁', '人間関係', '使命'],
+  瞑想: ['瞑想', '健康', '使命'],
+  無料診断: ['健康', '人間関係', '無料診断']
+}
+
+const autoThemeRotations: Theme[][] = [
+  ['健康', '人間関係', '使命'],
+  ['お金', 'ご縁', '健康'],
+  ['人間関係', '使命', '無料診断'],
+  ['瞑想', '健康', 'お金']
+]
+
 export function planThemesForDay(dayIndex: number, userTheme: Theme | 'auto', postsPerDay: number, memo: string, seed: number): Theme[] {
   if (userTheme !== 'auto') {
-    return new Array(postsPerDay).fill(userTheme)
+    return companionThemes[userTheme].slice(0, postsPerDay)
   }
+  const hitTheme = ALL_THEMES.find((t) => themeKeywords[t].some((kw) => memo.includes(kw)))
+  if (hitTheme) return companionThemes[hitTheme].slice(0, postsPerDay)
+
+  const rotationPreset = autoThemeRotations[(dayIndex - 1 + seed) % autoThemeRotations.length]
+  if (postsPerDay <= rotationPreset.length) return rotationPreset.slice(0, postsPerDay)
+
   const weighted: Theme[] = []
   ALL_THEMES.forEach((t) => {
-    const hit = themeKeywords[t].some((kw) => memo.includes(kw))
     weighted.push(t)
-    if (hit) weighted.push(t, t)
   })
   const rotation = shuffle(weighted, seed + dayIndex * 97)
   const themes: Theme[] = []
@@ -66,13 +88,29 @@ function isUsed(history: HistoryEntry[], field: 'topHeadline' | 'captionLead', v
 
 function pickUnusedVariant(variants: PostVariant[], history: HistoryEntry[], seed: number): PostVariant {
   const shuffled = shuffle(variants, seed)
-  const fresh = shuffled.find((v) => !isUsed(history, 'topHeadline', v.topHeadline))
-  return fresh ?? shuffled[0]
+  const fresh = shuffled.find((v) => !isUsed(history, 'topHeadline', v.topHeadline) && !isUsed(history, 'captionLead', v.captionLead))
+  return fresh ?? shuffled.find((v) => !isUsed(history, 'topHeadline', v.topHeadline)) ?? shuffled[0]
 }
 
 function containsForbidden(text: string, forbiddenWords: string[]): boolean {
   if (!text) return false
   return forbiddenWords.some((w) => w && text.includes(w))
+}
+
+function countJapaneseChars(text: string): number {
+  return Array.from((text || '').replace(/\s/g, '')).length
+}
+
+function isAcceptableTopHeadline(headline: string): boolean {
+  const lines = (headline || '').split('\n').map((l) => l.trim()).filter(Boolean)
+  if (lines.length < 1 || lines.length > 3) return false
+  const joined = lines.join('')
+  if (countJapaneseChars(joined) > 22) return false
+  if (lines.some((l) => countJapaneseChars(l) > 12)) return false
+  // 表紙は説明文ではなく一言。読点が多い長文は中ページへ回す。
+  const punctuationCount = (joined.match(/[、。]/g) || []).length
+  if (punctuationCount > 1) return false
+  return true
 }
 
 function sanitizeHashtags(tags: string[] | null | undefined, settings: AppSettings): string[] {
@@ -137,6 +175,9 @@ async function generateCore(theme: Theme, history: HistoryEntry[], settings: App
   const aiValid =
     !!ai &&
     ai.topHeadline.trim().length > 0 &&
+    isAcceptableTopHeadline(ai.topHeadline.trim()) &&
+    !isUsed(history, 'topHeadline', ai.topHeadline.trim(), 80) &&
+    !isUsed(history, 'captionLead', (ai.captionLead || '').trim(), 80) &&
     ai.slides6.length === 6 &&
     ai.slides6.every((s) => (s.mainText || '').trim().length > 0) &&
     !containsForbidden(ai.topHeadline, settings.forbiddenWords) &&

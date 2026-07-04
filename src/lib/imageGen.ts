@@ -9,7 +9,7 @@ import { Slide } from '../types'
 
 export const SLIDE_SIZE = { w: 1080, h: 1350 } // Instagram 4:5
 
-const MINCHO_FONT = '"Noto Serif JP", "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", serif'
+const MINCHO_FONT = '"Shippori Mincho", "Noto Serif JP", "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", serif'
 const HEADLINE_FONT = MINCHO_FONT
 const BODY_FONT = MINCHO_FONT
 const SERIF_FONT = MINCHO_FONT
@@ -30,6 +30,11 @@ const COLOR_HIGHLIGHT_BG = '#EAF7E4'
 const COLOR_HIGHLIGHT_BORDER = '#D6EFD0'
 
 const FONT_LOAD_SPECS = [
+  '400 28px "Shippori Mincho"',
+  '500 34px "Shippori Mincho"',
+  '500 56px "Shippori Mincho"',
+  '600 86px "Shippori Mincho"',
+  '700 96px "Shippori Mincho"',
   `700 112px ${HEADLINE_FONT}`,
   `600 68px ${BODY_FONT}`,
   `500 46px ${BODY_FONT}`,
@@ -299,7 +304,7 @@ function drawHighlightedLine(ctx: CanvasRenderingContext2D, line: string, leftX:
   ctx.fillText(after, leftX + beforeWidth + hitWidth, y)
 }
 
-function footerBadge(ctx: CanvasRenderingContext2D, w: number, h: number, displayName: string, title: string) {
+function footerBadge(ctx: CanvasRenderingContext2D, w: number, h: number, displayName: string, title: string, yOverride?: number) {
   const nameFont = `500 27px ${BODY_FONT}`
   const titleFont = `400 22px ${SERIF_FONT}`
   const sep = '｜'
@@ -313,7 +318,7 @@ function footerBadge(ctx: CanvasRenderingContext2D, w: number, h: number, displa
   const boxW = textW + padX * 2
   const boxH = 56
   const boxX = w / 2 - boxW / 2
-  const boxY = h - 196
+  const boxY = typeof yOverride === 'number' ? yOverride : h - 196
 
   ctx.save()
   ctx.fillStyle = '#FFFFFF'
@@ -386,7 +391,7 @@ function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: numb
   let fontSize = 106
   let lines: string[] = []
   do {
-    ctx.font = `600 ${fontSize}px ${HEADLINE_FONT}`
+    ctx.font = `500 ${fontSize}px ${HEADLINE_FONT}`
     lines = getHeadlineLines(ctx, headline, maxWidth, fontSize)
     const lineHeight = fontSize * 1.42
     const maxLineW = Math.max(...lines.map((l) => ctx.measureText(l).width), 1)
@@ -398,7 +403,7 @@ function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: numb
   const totalH = lines.length * lineHeight
   let y = h * 0.51 - totalH / 2 + lineHeight / 2
 
-  ctx.font = `600 ${fontSize}px ${HEADLINE_FONT}`
+  ctx.font = `500 ${fontSize}px ${HEADLINE_FONT}`
   ctx.fillStyle = COLOR_TEXT_MAIN
   lines.forEach((line) => {
     ctx.fillText(line, w / 2, y)
@@ -442,7 +447,7 @@ function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, sub
   let fontSize = 88
   let lines: string[] = []
   do {
-    ctx.font = `600 ${fontSize}px ${HEADLINE_FONT}`
+    ctx.font = `500 ${fontSize}px ${HEADLINE_FONT}`
     lines = getHeadlineLines(ctx, headline, maxWidth, fontSize)
     const lineHeight = fontSize * 1.45
     const maxLineW = Math.max(...lines.map((l) => ctx.measureText(l).width), 1)
@@ -450,7 +455,7 @@ function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, sub
     fontSize -= 3
   } while (fontSize > 56)
 
-  ctx.font = `600 ${fontSize}px ${HEADLINE_FONT}`
+  ctx.font = `500 ${fontSize}px ${HEADLINE_FONT}`
   ctx.fillStyle = COLOR_TEXT_MAIN
   const lineHeight = fontSize * 1.45
   const totalH = lines.length * lineHeight
@@ -460,12 +465,13 @@ function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, sub
     y += lineHeight
   })
 
-  footerBadge(ctx, w, h, displayName, title)
+  // CTAは署名ピルと導線文言が被らないよう、通常ページより上に配置する。
+  footerBadge(ctx, w, h, displayName, title, h - 285)
 
   ctx.font = `400 31px ${SERIF_FONT}`
   ctx.fillStyle = COLOR_TEXT_MAIN
   ctx.textAlign = 'center'
-  ctx.fillText('プロフィールのリンクから', w / 2, h - 142)
+  ctx.fillText('プロフィールのリンクから', w / 2, h - 170)
 }
 
 // ---------- 中ページ ----------
@@ -496,41 +502,56 @@ function renderPointStyleSlide(
 
   // 本文：全て同じ明朝体、濃いチャコール。ゴシック混在を避ける。
   const maxWidth = w * 0.76
-  const hasBullets = !!bullets && bullets.length > 0
-  let fontSize = hasBullets ? 50 : 58
+  const usableBullets = (bullets || []).slice(0, 3)
+  const hasBullets = usableBullets.length > 0
+  const footerTopY = h - 212
+  let fontSize = hasBullets ? 48 : 58
   let lines: string[] = []
+  let lineHeight = fontSize * 1.52
+  let bulletFontSize = 29
+  let bulletLineHeight = 48
+  let mainStartY = hasBullets ? h * 0.36 : h * 0.40
+
+  // 本文＋箇条書き＋フッターが絶対に重ならないよう、全体の高さでフィットさせる。
   do {
     ctx.font = `500 ${fontSize}px ${BODY_FONT}`
     lines = wrapText(ctx, mainText, maxWidth)
-    const lineHeight = fontSize * 1.58
-    const mainBlockLimit = hasBullets ? h * 0.38 : h * 0.45
+    lineHeight = fontSize * 1.52
+    bulletFontSize = Math.max(25, Math.min(31, Math.round(fontSize * 0.58)))
+    bulletLineHeight = Math.round(bulletFontSize * 1.55)
+    const mainHeight = lines.length * lineHeight
+    const bulletHeight = hasBullets ? 42 + usableBullets.length * bulletLineHeight : 0
+    mainStartY = hasBullets ? h * 0.34 : h * 0.40
+    const totalBottom = mainStartY + mainHeight + bulletHeight
     const maxLineW = Math.max(...lines.map((l) => ctx.measureText(l).width), 1)
-    if (lines.length * lineHeight <= mainBlockLimit && maxLineW <= maxWidth) break
+    if (totalBottom <= footerTopY && maxLineW <= maxWidth) break
     fontSize -= 2
   } while (fontSize > 34)
 
   const mainFont = `500 ${fontSize}px ${BODY_FONT}`
   ctx.font = mainFont
-  const lineHeight = fontSize * 1.58
   const widths = lines.map((l) => ctx.measureText(l).width)
   const maxLineW = Math.max(...widths, 1)
   const leftX = w / 2 - maxLineW / 2
-  let y = hasBullets ? h * 0.38 : h * 0.40
+  let y = mainStartY
 
   lines.forEach((line) => {
     if (line) drawHighlightedLine(ctx, line, leftX, y, highlights || [], mainFont)
     y += lineHeight
   })
 
-  // 箇条書き：小さくなりすぎず、本文と同じ明朝体。
-  if (bullets && bullets.length > 0) {
-    const bulletFont = `400 31px ${BODY_FONT}`
+  // 箇条書き：本文と同じ明朝体。フッターと重ならない位置に強制収める。
+  if (hasBullets) {
+    const bulletFont = `400 ${bulletFontSize}px ${BODY_FONT}`
     ctx.font = bulletFont
     ctx.textAlign = 'left'
     const bMaxW = Math.min(w * 0.68, 700)
     const bulletLeft = w / 2 - bMaxW / 2
-    let by = Math.max(y + 44, h * 0.65)
-    bullets.slice(0, 4).forEach((b) => {
+    const bulletBlockH = usableBullets.length * bulletLineHeight
+    let by = Math.max(y + 36, h * 0.66)
+    by = Math.min(by, footerTopY - bulletBlockH - 14)
+
+    usableBullets.forEach((b) => {
       ctx.save()
       ctx.fillStyle = COLOR_LIGHT_GREEN
       ctx.globalAlpha = 0.9
@@ -541,7 +562,7 @@ function renderPointStyleSlide(
 
       ctx.fillStyle = COLOR_TEXT_MAIN
       ctx.fillText(`・${b}`, bulletLeft, by)
-      by += 52
+      by += bulletLineHeight
     })
   }
 
