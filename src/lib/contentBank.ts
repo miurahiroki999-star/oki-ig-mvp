@@ -444,8 +444,8 @@ export function getPostBank(theme: Theme): PostVariant[] {
 
 // CTA(8枚目)の見出しは固定文言だがブレを持たせるため2種類用意する
 export const ctaHeadlines: { headline: string; subheadline: string }[] = [
-  { headline: '今の自分を\n知ることから', subheadline: '公式LINEで「人生の質向上チェック」' },
-  { headline: 'まずは\n無料診断から', subheadline: '公式LINEで「人生の質向上チェック」' }
+  { headline: 'まずは\n今の整えどころを知る', subheadline: '公式LINEで「人生の質向上チェック」' },
+  { headline: '今の状態を\n見てみる', subheadline: '公式LINEで「人生の質向上チェック」' }
 ]
 
 export const captionClosingLines: string[] = [

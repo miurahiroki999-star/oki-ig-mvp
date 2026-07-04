@@ -49,10 +49,11 @@ const companionThemes: Record<Theme, Theme[]> = {
 }
 
 const autoThemeRotations: Theme[][] = [
-  ['健康', '人間関係', '使命'],
-  ['お金', 'ご縁', '健康'],
-  ['人間関係', '使命', '無料診断'],
-  ['瞑想', '健康', 'お金']
+  // 朝:健康 / 昼:お金・人間関係 / 夜:使命・ご縁・内省 の見え方を作る。
+  ['健康', 'お金', '人間関係'],
+  ['ご縁', '健康', '使命'],
+  ['お金', '人間関係', '無料診断'],
+  ['瞑想', '健康', '使命']
 ]
 
 export function planThemesForDay(dayIndex: number, userTheme: Theme | 'auto', postsPerDay: number, memo: string, seed: number): Theme[] {
@@ -62,7 +63,7 @@ export function planThemesForDay(dayIndex: number, userTheme: Theme | 'auto', po
   const hitTheme = ALL_THEMES.find((t) => themeKeywords[t].some((kw) => memo.includes(kw)))
   if (hitTheme) return companionThemes[hitTheme].slice(0, postsPerDay)
 
-  const rotationPreset = autoThemeRotations[(dayIndex - 1 + seed) % autoThemeRotations.length]
+  const rotationPreset = autoThemeRotations[(dayIndex - 1) % autoThemeRotations.length]
   if (postsPerDay <= rotationPreset.length) return rotationPreset.slice(0, postsPerDay)
 
   const weighted: Theme[] = []
@@ -105,12 +106,22 @@ function isAcceptableTopHeadline(headline: string): boolean {
   const lines = (headline || '').split('\n').map((l) => l.trim()).filter(Boolean)
   if (lines.length < 1 || lines.length > 3) return false
   const joined = lines.join('')
-  if (countJapaneseChars(joined) > 22) return false
-  if (lines.some((l) => countJapaneseChars(l) > 12)) return false
-  // 表紙は説明文ではなく一言。読点が多い長文は中ページへ回す。
+  // TOPは“説明”ではなく“刺す一言”。長すぎる見出しは必ず中ページへ回す。
+  if (countJapaneseChars(joined) > 18) return false
+  if (lines.some((l) => countJapaneseChars(l) > 10)) return false
   const punctuationCount = (joined.match(/[、。]/g) || []).length
-  if (punctuationCount > 1) return false
+  if (punctuationCount > 0) return false
   return true
+}
+
+function isAcceptableSlides(slides: Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[]): boolean {
+  if (slides.length !== 6) return false
+  return slides.every((s) => {
+    const len = countJapaneseChars(s.mainText || '')
+    const lines = (s.mainText || '').split('\n').map((l) => l.trim()).filter(Boolean)
+    const bullets = s.bullets || []
+    return len > 0 && len <= 90 && lines.length <= 5 && bullets.length <= 3
+  })
 }
 
 function sanitizeHashtags(tags: string[] | null | undefined, settings: AppSettings): string[] {
@@ -178,8 +189,7 @@ async function generateCore(theme: Theme, history: HistoryEntry[], settings: App
     isAcceptableTopHeadline(ai.topHeadline.trim()) &&
     !isUsed(history, 'topHeadline', ai.topHeadline.trim(), 80) &&
     !isUsed(history, 'captionLead', (ai.captionLead || '').trim(), 80) &&
-    ai.slides6.length === 6 &&
-    ai.slides6.every((s) => (s.mainText || '').trim().length > 0) &&
+    isAcceptableSlides(ai.slides6) &&
     !containsForbidden(ai.topHeadline, settings.forbiddenWords) &&
     !ai.slides6.some((s) => containsForbidden(s.mainText || '', settings.forbiddenWords))
 
@@ -199,14 +209,70 @@ async function generateCore(theme: Theme, history: HistoryEntry[], settings: App
   return localCore(theme, history, seed, settings)
 }
 
+
+function buildThemeTestimonialBlock(theme: Theme): string {
+  const blocks: Record<Theme, string[]> = {
+    健康: [
+      '―――🗣よくある相談―――',
+      '',
+      '✔ 睡眠は足りているのにだるい',
+      '✔ 食事や運動を整えても続かない',
+      '✔ 不調の原因がどこにあるか分からない'
+    ],
+    お金: [
+      '―――🗣よくある相談―――',
+      '',
+      '✔ 収入を増やしても不安が消えない',
+      '✔ お金のことを考えると焦る',
+      '✔ 何から整えれば流れが変わるか分からない'
+    ],
+    人間関係: [
+      '―――🗣よくある相談―――',
+      '',
+      '✔ 人と会うと疲れてしまう',
+      '✔ 本音を言えずに合わせてしまう',
+      '✔ 大切な人ほど距離感が分からない'
+    ],
+    使命: [
+      '―――🗣よくある相談―――',
+      '',
+      '✔ 本当にやりたいことが分からない',
+      '✔ 今の選択に自信が持てない',
+      '✔ 使命や役割の感覚がつかめない'
+    ],
+    ご縁: [
+      '―――🗣よくある相談―――',
+      '',
+      '✔ 良い出会いが続かない',
+      '✔ 合う人とだけ深くつながりたい',
+      '✔ 無理せず自然にご縁を育てたい'
+    ],
+    瞑想: [
+      '―――🗣よくある相談―――',
+      '',
+      '✔ 瞑想しても頭が静まらない',
+      '✔ 心がざわついて落ち着かない',
+      '✔ 自分の状態を整える感覚が分からない'
+    ],
+    無料診断: [
+      '―――🗣よくある相談―――',
+      '',
+      '✔ 何から整えればいいか分からない',
+      '✔ 自分では整えどころに気づけない',
+      '✔ 客観的に今の状態を見てほしい'
+    ]
+  }
+  return blocks[theme].join('\n')
+}
+
 // 投稿欄本文(caption)を組み立てる。service/Present/profile/よくある相談は
 // 設定画面で管理する固定ブロックをそのまま使い、AIの出力ゆれで消えたり変わったりしないようにする。
-function buildCaption(captionLead: string, settings: AppSettings, hashtags: string[], seed: number): string {
+function buildCaption(captionLead: string, settings: AppSettings, hashtags: string[], seed: number, theme: Theme): string {
   const closing = captionClosingLines[seed % captionClosingLines.length]
   const parts = [
     captionLead,
     '',
-    settings.testimonialBlock,
+    buildThemeTestimonialBlock(theme),
     '',
     settings.serviceBlock,
     '',
@@ -235,7 +301,7 @@ function buildSlides(core: CoreResult, seed: number): Slide[] {
     slides.push({
       index: i + 2,
       role: middleRoles[i],
-      label: s.label,
+      label: middleRoles[i],
       mainText: s.mainText,
       highlights: s.highlights,
       bullets: s.bullets
@@ -275,7 +341,7 @@ export async function buildDayPosts(
     const core = await generateCore(theme, workingHistory, settings, seed, memo)
     const slides = buildSlides(core, seed)
     const hashtags = core.hashtags
-    const caption = buildCaption(core.captionLead, settings, hashtags, seed)
+    const caption = buildCaption(core.captionLead, settings, hashtags, seed, theme)
 
     posts.push({
       dayIndex,
@@ -319,7 +385,7 @@ export async function regenerateSinglePost(
   const core = await generateCore(theme, history, settings, seed, memo)
   const slides = buildSlides(core, seed)
   const hashtags = core.hashtags
-  const caption = buildCaption(core.captionLead, settings, hashtags, seed)
+  const caption = buildCaption(core.captionLead, settings, hashtags, seed, theme)
   return { postTitle: core.postTitle, slides, caption, captionLead: core.captionLead, hashtags, source: core.source }
 }
 

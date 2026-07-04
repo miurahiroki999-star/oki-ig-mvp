@@ -1,6 +1,6 @@
 // カルーセルスライド(TOP / 中ページ / CTA)をCanvasで描画してPNGを生成する。
 // v2 design-fix:
-//   - 全体を明朝体ベースへ統一
+//   - 全体をNoto Serif JP優先の明朝体へ統一
 //   - TOPタイトルは薄すぎない濃いグリーンで視認性を優先
 //   - 中ページは「見立て」参考のように、濃い明朝本文＋淡いグリーンの語句ハイライト＋下部ピル型署名
 //   - 背景は白を主役にし、ライトグリーンは装飾とアクセントに限定
@@ -9,7 +9,7 @@ import { Slide } from '../types'
 
 export const SLIDE_SIZE = { w: 1080, h: 1350 } // Instagram 4:5
 
-const MINCHO_FONT = '"Shippori Mincho", "Noto Serif JP", "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", serif'
+const MINCHO_FONT = '"Noto Serif JP", "Shippori Mincho", "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", serif'
 const HEADLINE_FONT = MINCHO_FONT
 const BODY_FONT = MINCHO_FONT
 const SERIF_FONT = MINCHO_FONT
@@ -30,11 +30,11 @@ const COLOR_HIGHLIGHT_BG = '#EAF7E4'
 const COLOR_HIGHLIGHT_BORDER = '#D6EFD0'
 
 const FONT_LOAD_SPECS = [
-  '400 28px "Shippori Mincho"',
-  '500 34px "Shippori Mincho"',
-  '500 56px "Shippori Mincho"',
-  '600 86px "Shippori Mincho"',
-  '700 96px "Shippori Mincho"',
+  '400 28px "Noto Serif JP"',
+  '500 34px "Noto Serif JP"',
+  '500 56px "Noto Serif JP"',
+  '600 86px "Noto Serif JP"',
+  '700 96px "Noto Serif JP"',
   `700 112px ${HEADLINE_FONT}`,
   `600 68px ${BODY_FONT}`,
   `500 46px ${BODY_FONT}`,
@@ -388,7 +388,7 @@ function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: numb
 
   // TOPタイトル：中ページ本文と同じ濃いチャコール、同じ明朝系フォントへ統一。
   const maxWidth = w * 0.82
-  let fontSize = 106
+  let fontSize = 100
   let lines: string[] = []
   do {
     ctx.font = `500 ${fontSize}px ${HEADLINE_FONT}`
