@@ -11,6 +11,47 @@ export type Theme =
 
 export const ALL_THEMES: Theme[] = ['人間関係', '健康', 'お金', '使命', 'ご縁', '瞑想', '無料診断']
 
+// 旧MVPファイルがGitHub上に残っていてもNetlifyビルドが落ちないようにする互換型。
+// 新カルーセル版の画面では基本使用しない。
+export type PostKind = 'フィード' | 'ストーリーズ'
+
+export interface PhotoAsset {
+  id: string
+  name: string
+  dataUrl: string
+  tags: string[]
+  createdAt: string
+}
+
+export interface BackgroundTemplate {
+  id: string
+  kind: PostKind
+  name: string
+  style: 'gradient' | 'blob' | 'wave' | 'frame' | 'dot'
+  colorFrom: string
+  colorTo: string
+  accent?: string
+  createdAt: string
+}
+
+export interface GeneratedPost {
+  id: string
+  printDate: string
+  printRun: number
+  dayIndex: number
+  orderIndex: number
+  kind: PostKind
+  role: 'user' | 'assistant' | string
+  theme: Theme
+  title: string
+  approach: string
+  body: string
+  templateId?: string
+  imageDataUrl?: string
+  regenerationCount: number
+}
+
+
 // カルーセル1投稿=8枚基本（山添さん型TTP構成）
 export type SlideRole =
   | 'TOP'
@@ -97,4 +138,14 @@ export interface HistoryEntry {
   captionLead: string
   entryType: HistoryEntryType // 生成済み / 再生成済み(上書きせず全て残す)
   source: 'ai' | 'local'
+
+  // 旧MVP互換フィールド。GitHubに旧コンポーネントが残存してもビルドを止めないため optional で保持。
+  orderIndex?: number
+  kind?: PostKind
+  role?: 'user' | 'assistant' | string
+  title?: string
+  approach?: string
+  body?: string
+  templateId?: string
+  regenerationCount?: number
 }

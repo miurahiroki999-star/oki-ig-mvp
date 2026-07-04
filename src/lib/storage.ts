@@ -1,13 +1,15 @@
 // ローカル保存レイヤー。将来 Supabase 等に差し替えやすいよう、
 // 呼び出し側は必ずこのモジュール経由でデータを読み書きする。
 
-import { AppSettings, GenerationBatch, HistoryEntry } from '../types'
+import { AppSettings, BackgroundTemplate, GenerationBatch, HistoryEntry, PhotoAsset } from '../types'
 
 const KEYS = {
   settings: 'oki_ig_carousel_settings_v1',
   history: 'oki_ig_carousel_history_v1',
   batches: 'oki_ig_carousel_batches_v1',
-  printRunCounters: 'oki_ig_carousel_print_run_counters_v1'
+  printRunCounters: 'oki_ig_carousel_print_run_counters_v1',
+  legacyPhotos: 'oki_ig_legacy_photos_v1',
+  legacyTemplates: 'oki_ig_legacy_templates_v1'
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -130,4 +132,19 @@ export function getNextPrintRun(printDate: string): number {
   counters[printDate] = next
   writeJson(KEYS.printRunCounters, counters)
   return next
+}
+
+
+// ---------- 旧MVP互換（旧ファイルがGitHubに残っていてもビルドを落とさないため） ----------
+export function getPhotos(): PhotoAsset[] {
+  return readJson<PhotoAsset[]>(KEYS.legacyPhotos, [])
+}
+export function savePhotos(photos: PhotoAsset[]) {
+  writeJson(KEYS.legacyPhotos, photos)
+}
+export function getTemplates(): BackgroundTemplate[] {
+  return readJson<BackgroundTemplate[]>(KEYS.legacyTemplates, [])
+}
+export function saveTemplates(templates: BackgroundTemplate[]) {
+  writeJson(KEYS.legacyTemplates, templates)
 }

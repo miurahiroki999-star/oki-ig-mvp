@@ -66,7 +66,9 @@ export async function tryGenerateWithOpenAI(params: TryGenerateParams): Promise<
 
 // 「プロンプト生成モード」: OpenAI APIキーが無くても、
 // ClaudeやChatGPTにそのまま貼れる生成プロンプトを作る(出力確認画面の「AIプロンプト」ボタン用)。
-export function buildManualPrompt(theme: Theme, postTitle: string): string {
+export function buildManualPrompt(themeOrPost: Theme | { theme?: Theme; title?: string; postTitle?: string }, postTitleArg?: string): string {
+  const theme = typeof themeOrPost === 'string' ? themeOrPost : (themeOrPost.theme || 'ご縁')
+  const postTitle = typeof themeOrPost === 'string' ? (postTitleArg || '') : (themeOrPost.postTitle || themeOrPost.title || '')
   return [
     'あなたはウェルネス系Instagramのカルーセル投稿を作るプロの日本語コピーライターです。',
     '',

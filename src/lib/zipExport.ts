@@ -101,3 +101,13 @@ export async function exportBatchZip(posts: CarouselPost[], printDate: string, p
   a.remove()
   URL.revokeObjectURL(url)
 }
+
+
+// 旧MVP互換：旧PostCard.tsxがGitHubに残っていてもビルドを落とさないためのファイル名生成。
+export function fileBaseName(post: any): string {
+  const printDate = post?.printDate || new Date().toISOString().slice(0, 10)
+  const dayIndex = post?.dayIndex ?? 1
+  const orderIndex = post?.orderIndex ?? post?.postIndex ?? 1
+  const kind = post?.kind || '投稿'
+  return `${printDate}_${dayIndex}日目_${orderIndex}回目_${kind}`
+}
