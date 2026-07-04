@@ -28,6 +28,8 @@ const COLOR_FRAME = '#B9EAB7'
 const COLOR_ACCENT_GOLD = '#B79A5D'
 const COLOR_HIGHLIGHT_BG = '#EAF7E4'
 const COLOR_HIGHLIGHT_BORDER = '#D6EFD0'
+const COLOR_BADGE_NAME = '#86C97C'
+const COLOR_BADGE_FRAME = '#D7EFD2'
 
 
 
@@ -177,9 +179,23 @@ function drawWatercolorBlob(
   ctx.restore()
 }
 
-function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bgAsset?: CanvasImageSource | null) {
+function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bgAsset?: CanvasImageSource | null, kind: BackgroundKind = 'middle') {
   if (bgAsset) {
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, w, h)
+
+    const bgAlpha = kind === 'middle' ? 0.78 : kind === 'cta' ? 0.90 : 0.94
+    ctx.save()
+    ctx.globalAlpha = bgAlpha
     ctx.drawImage(bgAsset, 0, 0, w, h)
+    ctx.restore()
+
+    const center = ctx.createRadialGradient(w / 2, h * 0.48, 1, w / 2, h * 0.48, w * 0.58)
+    center.addColorStop(0, 'rgba(255,255,255,0.55)')
+    center.addColorStop(0.58, 'rgba(255,255,255,0.34)')
+    center.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = center
+    ctx.fillRect(0, 0, w, h)
     return
   }
   ctx.fillStyle = COLOR_BG
@@ -454,9 +470,9 @@ function footerBadge(ctx: CanvasRenderingContext2D, w: number, h: number, displa
 
   ctx.save()
   ctx.fillStyle = '#FFFFFF'
-  ctx.shadowColor = 'rgba(84,125,80,0.16)'
-  ctx.shadowBlur = 16
-  ctx.strokeStyle = COLOR_FRAME
+  ctx.shadowColor = 'rgba(84,125,80,0.09)'
+  ctx.shadowBlur = 10
+  ctx.strokeStyle = COLOR_BADGE_FRAME
   ctx.lineWidth = 1.3
   roundedRectPath(ctx, boxX, boxY, boxW, boxH, boxH / 2)
   ctx.fill()
@@ -468,7 +484,7 @@ function footerBadge(ctx: CanvasRenderingContext2D, w: number, h: number, displa
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
   ctx.font = nameFont
-  ctx.fillStyle = COLOR_LABEL
+  ctx.fillStyle = COLOR_BADGE_NAME
   ctx.fillText(displayName, x, baseY)
   x += nameW
   ctx.font = titleFont
@@ -504,7 +520,7 @@ function getHeadlineLines(ctx: CanvasRenderingContext2D, headline: string, maxWi
 
 // ---------- TOP / CTA ----------
 function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, footerRight: string, bgAsset?: CanvasImageSource | null) {
-  fillBackground(ctx, w, h, bgAsset)
+  fillBackground(ctx, w, h, bgAsset, 'top')
   if (!bgAsset) {
     drawFrame(ctx, w, h)
     drawCornerDecor(ctx, w, h)
@@ -564,7 +580,7 @@ function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: numb
 }
 
 function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, displayName: string, title: string, bgAsset?: CanvasImageSource | null) {
-  fillBackground(ctx, w, h, bgAsset)
+  fillBackground(ctx, w, h, bgAsset, 'cta')
   if (!bgAsset) {
     drawFrame(ctx, w, h)
     drawCornerDecor(ctx, w, h)
@@ -624,7 +640,7 @@ function renderPointStyleSlide(
   pageLabel: string,
   bgAsset?: CanvasImageSource | null
 ) {
-  fillBackground(ctx, w, h, bgAsset)
+  fillBackground(ctx, w, h, bgAsset, 'middle')
   if (!bgAsset) {
     drawFrame(ctx, w, h)
     drawCornerDecor(ctx, w, h)
@@ -685,8 +701,8 @@ function renderPointStyleSlide(
     ctx.font = bulletFont
     ctx.textAlign = 'left'
 
-    const bulletWrapWidth = Math.min(w * 0.56, 560)
-    const markerGap = 26
+    const bulletWrapWidth = Math.min(w * 0.60, 620)
+    const markerGap = 24
     const bulletGroups = usableBullets.map((b) => {
       const wrapped = wrapText(ctx, b, bulletWrapWidth)
       const width = Math.max(...wrapped.map((line) => ctx.measureText(`・${line}`).width), 1)
@@ -695,15 +711,15 @@ function renderPointStyleSlide(
 
     const maxBulletWidth = Math.max(...bulletGroups.map((g) => g.width), 1)
     const bulletBlockWidth = Math.min(maxBulletWidth + markerGap, bulletWrapWidth + markerGap)
-    const bulletBlockHeight = bulletGroups.reduce((sum, g) => sum + g.wrapped.length * bulletLineHeight, 0) + (bulletGroups.length - 1) * 10
+    const bulletBlockHeight = bulletGroups.reduce((sum, g) => sum + g.wrapped.length * bulletLineHeight, 0) + (bulletGroups.length - 1) * 8
 
-    const textAnchorLeft = Math.max(120, Math.min(leftX + 10, w / 2 - bulletBlockWidth / 2))
     const centeredLeft = w / 2 - bulletBlockWidth / 2 + markerGap
-    const bulletLeft = Math.max(130, Math.min(centeredLeft, textAnchorLeft + 40))
+    const mainAlignedLeft = leftX + Math.min(36, Math.max(0, maxLineW * 0.04))
+    const bulletLeft = Math.max(150, Math.min(centeredLeft + 18, mainAlignedLeft + 70))
 
-    let by = y + 24
-    by = Math.max(by, h * 0.60)
-    by = Math.min(by, footerTopY - bulletBlockHeight - 10)
+    let by = y + 14
+    by = Math.max(by, h * 0.56)
+    by = Math.min(by, footerTopY - bulletBlockHeight - 6)
 
     bulletGroups.forEach((group) => {
       const markerY = by + Math.max(14, bulletLineHeight * 0.38)
@@ -719,7 +735,7 @@ function renderPointStyleSlide(
         ctx.fillStyle = COLOR_TEXT_MAIN
         ctx.fillText(lineIndex === 0 ? `・${line}` : `　${line}`, bulletLeft, by + lineIndex * bulletLineHeight)
       })
-      by += group.wrapped.length * bulletLineHeight + 10
+      by += group.wrapped.length * bulletLineHeight + 8
     })
   }
 
