@@ -1,4 +1,4 @@
-// 1日分=3投稿(カルーセル)を組み立てるロジック。
+// 1日分=5投稿(カルーセル)を組み立てるロジック。
 //
 // 生成フロー(投稿ごと):
 //   1. まずOpenAI API(Netlify Functions経由・Responses API)で
@@ -36,51 +36,63 @@ const themeKeywords: Record<Theme, string[]> = {
   無料診断: ['診断', 'チェック', '無料診断']
 }
 
-// 1日3投稿は同じテーマを連続させず、朝・昼・夜で見え方を分散させる。
-// テーマ指定がある場合も、そのテーマを起点に関連テーマへ広げる（3本とも同テーマにはしない）。
+// 1日5投稿は時間帯ごとにテーマを固定し、露出機会と内容の重複回避を両立させる。
+// テーマ指定がある場合も、そのテーマを起点に関連テーマへ広げる（5本とも同テーマにはしない）。
+export const dailyPostingSlots: { time: string; theme: Theme; intent: string }[] = [
+  { time: '06:30', theme: '健康', intent: '朝の体調・状態を整える入口' },
+  { time: '09:30', theme: '人間関係', intent: '人と会う前の心構え・関係性の見直し' },
+  { time: '12:30', theme: 'お金', intent: '仕事・お金・現実面の整えどころ' },
+  { time: '18:30', theme: 'ご縁', intent: '仕事終わりのご縁・コミュニティ・出会い' },
+  { time: '21:00', theme: '使命', intent: '夜の内省・使命・覚醒・診断導線' }
+]
+
 const companionThemes: Record<Theme, Theme[]> = {
-  健康: ['健康', '人間関係', '使命'],
-  お金: ['お金', '健康', '使命'],
-  人間関係: ['人間関係', '健康', 'ご縁'],
-  使命: ['使命', '健康', 'お金'],
-  ご縁: ['ご縁', '人間関係', '使命'],
-  瞑想: ['瞑想', '健康', '使命'],
-  無料診断: ['健康', '人間関係', '無料診断']
+  健康: ['健康', '人間関係', 'お金', 'ご縁', '使命'],
+  お金: ['お金', '健康', '人間関係', 'ご縁', '使命'],
+  人間関係: ['人間関係', '健康', 'お金', 'ご縁', '使命'],
+  使命: ['使命', '健康', '人間関係', 'お金', 'ご縁'],
+  ご縁: ['ご縁', '人間関係', '健康', 'お金', '使命'],
+  瞑想: ['瞑想', '健康', '人間関係', 'ご縁', '使命'],
+  無料診断: ['健康', '人間関係', 'お金', 'ご縁', '無料診断']
 }
 
 const autoThemeRotations: Theme[][] = [
-  // 朝:健康 / 昼:お金・人間関係 / 夜:使命・ご縁・内省 の見え方を作る。
-  ['健康', 'お金', '人間関係'],
-  ['ご縁', '健康', '使命'],
-  ['お金', '人間関係', '無料診断'],
-  ['瞑想', '健康', '使命']
+  ['健康', '人間関係', 'お金', 'ご縁', '使命'],
+  ['健康', '人間関係', 'お金', 'ご縁', '瞑想'],
+  ['健康', '人間関係', 'お金', 'ご縁', '無料診断']
 ]
 
 export function planThemesForDay(dayIndex: number, userTheme: Theme | 'auto', postsPerDay: number, memo: string, seed: number): Theme[] {
+  const normalizedPostsPerDay = Math.max(1, postsPerDay)
+
   if (userTheme !== 'auto') {
-    return companionThemes[userTheme].slice(0, postsPerDay)
+    const base = companionThemes[userTheme] || autoThemeRotations[0]
+    return base.slice(0, normalizedPostsPerDay)
   }
+
   const hitTheme = ALL_THEMES.find((t) => themeKeywords[t].some((kw) => memo.includes(kw)))
-  if (hitTheme) return companionThemes[hitTheme].slice(0, postsPerDay)
+  if (hitTheme) return companionThemes[hitTheme].slice(0, normalizedPostsPerDay)
 
   const rotationPreset = autoThemeRotations[(dayIndex - 1) % autoThemeRotations.length]
-  if (postsPerDay <= rotationPreset.length) return rotationPreset.slice(0, postsPerDay)
+  if (normalizedPostsPerDay <= rotationPreset.length) return rotationPreset.slice(0, normalizedPostsPerDay)
 
-  const weighted: Theme[] = []
-  ALL_THEMES.forEach((t) => {
-    weighted.push(t)
-  })
-  const rotation = shuffle(weighted, seed + dayIndex * 97)
-  const themes: Theme[] = []
+  const rotation = shuffle(ALL_THEMES, seed + dayIndex * 97)
+  const themes: Theme[] = [...rotationPreset]
   let i = 0
-  while (themes.length < postsPerDay) {
+  while (themes.length < normalizedPostsPerDay) {
     const candidate = rotation[i % rotation.length]
-    if (themes.length === 0 || themes[themes.length - 1] !== candidate) themes.push(candidate)
+    if (!themes.includes(candidate)) themes.push(candidate)
     i++
-    if (i > rotation.length * 5) themes.push(candidate)
+    if (i > rotation.length * 5) break
   }
-  return themes.slice(0, postsPerDay)
+  while (themes.length < normalizedPostsPerDay) themes.push(rotation[themes.length % rotation.length])
+  return themes.slice(0, normalizedPostsPerDay)
 }
+
+function publishTimeForPost(postIndex: number): string {
+  return dailyPostingSlots[postIndex - 1]?.time || ''
+}
+
 
 function isUsed(history: HistoryEntry[], field: 'topHeadline' | 'captionLead', value: string, windowSize = 60): boolean {
   const recent = history.slice(-windowSize)
@@ -315,6 +327,7 @@ function buildSlides(core: CoreResult, seed: number): Slide[] {
 export interface PlannedPost {
   dayIndex: number
   postIndex: number
+  publishTime: string
   theme: Theme
   postTitle: string
   slides: Slide[]
@@ -346,6 +359,7 @@ export async function buildDayPosts(
     posts.push({
       dayIndex,
       postIndex: i + 1,
+      publishTime: publishTimeForPost(i + 1),
       theme,
       postTitle: core.postTitle,
       slides,
@@ -362,6 +376,7 @@ export async function buildDayPosts(
       printRun: 0,
       dayIndex,
       postIndex: i + 1,
+      publishTime: publishTimeForPost(i + 1),
       theme,
       postTitle: core.postTitle,
       topHeadline: core.topHeadline,
@@ -397,6 +412,7 @@ export function toCarouselPost(
     id: extra.id,
     dayIndex: planned.dayIndex,
     postIndex: planned.postIndex,
+    publishTime: planned.publishTime,
     theme: planned.theme,
     postTitle: planned.postTitle,
     slides: planned.slides,

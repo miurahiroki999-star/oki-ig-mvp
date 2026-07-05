@@ -81,7 +81,8 @@ export interface Slide {
 export interface CarouselPost {
   id: string
   dayIndex: number // このセット内の◯日目 (1始まり)
-  postIndex: number // その日の◯投稿目 (1始まり、標準1〜3)
+  postIndex: number // その日の◯投稿目 (1始まり、標準1〜5)
+  publishTime: string // 推奨公開時間（例: 06:30）
   theme: Theme
   postTitle: string // 管理用のタイトル(TOP見出しの要約)
   slides: Slide[]
@@ -115,7 +116,7 @@ export interface AppSettings {
   openaiModel: string
   forbiddenWords: string[]
   baseHashtags: string[]
-  postsPerDay: number // 標準3固定（内部設定として変更可）
+  postsPerDay: number // 標準5固定
   slidesPerPost: number // 基本8、テーマにより9〜10まで可変
   testimonialBlock: string // よくある相談 / お客様の声
   serviceBlock: string // service紹介
@@ -132,6 +133,7 @@ export interface HistoryEntry {
   printRun: number
   dayIndex: number
   postIndex: number
+  publishTime?: string
   theme: Theme
   postTitle: string
   topHeadline: string

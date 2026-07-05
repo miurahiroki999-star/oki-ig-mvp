@@ -23,6 +23,7 @@ function toHistoryEntry(p: CarouselPost, entryType: HistoryEntryType): HistoryEn
     printRun: p.printRun,
     dayIndex: p.dayIndex,
     postIndex: p.postIndex,
+    publishTime: p.publishTime,
     theme: p.theme,
     postTitle: p.postTitle,
     topHeadline: topSlide?.headline || p.postTitle,

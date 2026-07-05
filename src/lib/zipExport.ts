@@ -26,6 +26,7 @@ interface ManifestEntry {
   days: number
   postsPerDay: number
   postIndex: number
+  publishTime?: string
   slideIndex: number
   slideRole: string
   title: string
@@ -50,6 +51,7 @@ function addPostToZip(zip: JSZip, post: CarouselPost, days: number, postsPerDay:
       days,
       postsPerDay,
       postIndex: post.postIndex,
+      publishTime: post.publishTime,
       slideIndex: slide.index,
       slideRole: slide.role,
       title: post.postTitle,

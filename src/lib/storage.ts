@@ -46,7 +46,7 @@ export const defaultSettings: AppSettings = {
     '瞑想習慣',
     'ライフウェルネス'
   ],
-  postsPerDay: 3,
+  postsPerDay: 5,
   slidesPerPost: 8,
   testimonialBlock: [
     '―――🗣よくある相談―――',
@@ -109,6 +109,10 @@ export function getSettings(): AppSettings {
   if (!saved) return defaultSettings
 
   const merged = { ...defaultSettings, ...saved }
+
+  // v12 posting cadence migration:
+  // 1日5回カルーセル投稿で確定したため、古い3投稿設定がlocalStorageに残っていても5に戻す。
+  merged.postsPerDay = 5
 
   // v11 profile migration:
   // 旧profileBlockがブラウザのlocalStorageに残っている場合でも、

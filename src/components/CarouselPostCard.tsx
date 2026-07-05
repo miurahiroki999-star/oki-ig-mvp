@@ -37,7 +37,7 @@ export default function CarouselPostCard({ post, onSaveCaption, onFullRegenerate
     <div className="carousel-card">
       <div className="carousel-card-header">
         <span className="post-tag">
-          {post.dayIndex}日目 ・ {post.postIndex}投稿目 ・ テーマ:{post.theme} ・ {post.source === 'ai' ? 'AI生成' : 'ローカル生成'}
+          {post.dayIndex}日目 ・ {post.publishTime ? `${post.publishTime}公開 ` : ''}{post.postIndex}投稿目 ・ テーマ:{post.theme} ・ {post.source === 'ai' ? 'AI生成' : 'ローカル生成'}
         </span>
         {post.regenerationCount > 0 && <span className="helper-text">再生成 {post.regenerationCount} 回</span>}
       </div>

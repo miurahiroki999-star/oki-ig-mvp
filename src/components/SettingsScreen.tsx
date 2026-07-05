@@ -50,13 +50,13 @@ export default function SettingsScreen() {
       </div>
 
       <div className="form-row">
-        <label>1日あたりの投稿本数（内部設定・標準3固定を推奨）</label>
+        <label>1日あたりの投稿本数（標準5固定：6:30 / 9:30 / 12:30 / 18:30 / 21:00）</label>
         <input
           type="number"
-          min={1}
+          min={5}
           max={5}
           value={settings.postsPerDay}
-          onChange={(e) => update('postsPerDay', Math.max(1, Number(e.target.value)))}
+          onChange={() => update('postsPerDay', 5)}
         />
       </div>
       <div className="form-row">
