@@ -84,23 +84,22 @@ export const defaultSettings: AppSettings = {
     '株式会社エル・クオリティ 代表取締役',
     'ライフウェルネス・アソシエーション 代表',
     '',
-    '20年以上｜健康・心・人生の質向上に関わる活動',
-    '32年間｜手相・タロット・西洋占星術の鑑定',
-    '累計2万人以上｜鑑定実績',
+    '20年以上にわたり、',
+    '健康・心・人生の質向上に関わる活動を継続。',
     '',
-    '健康商材の普及、瞑想指導、個人コンサルティング、',
+    '瞑想指導、個人コンサルティング、',
     'コミュニティ運営を通じて、',
-    '「より心地よく、より豊かに、自分らしく生きる人を増やす」',
-    'ことを使命として活動しています。',
+    '身体・心・経済・人間関係・使命を',
+    '総合的にサポートしています。',
     '',
-    '身体・心・経済・人間関係・使命の領域を総合的にサポートし、',
-    '一人ひとりが本来持つ可能性を引き出す',
-    '実践的な伴走支援を行っています。',
+    '「より心地よく、より豊かに、',
+    '自分らしく生きる人を増やす」ことを使命に、',
+    '人生の質向上をテーマに活動しています。',
     '',
-    '独自プログラム「ダイヤモンド覚醒セッション」では、',
-    '生年月日や個性分析を活用しながら、',
-    '才能・強み・使命を明確化し、人生を加速させるサポートを提供しています。'
-  ].join('\\n')
+    '32年間で2万人以上を鑑定してきた',
+    'プロ鑑定士',
+    '（手相・タロット・西洋占星術）としても活動。'
+  ].join('\n')
 }
 
 export function getSettings(): AppSettings {
@@ -114,15 +113,19 @@ export function getSettings(): AppSettings {
   // 1日5回カルーセル投稿で確定したため、古い3投稿設定がlocalStorageに残っていても5に戻す。
   merged.postsPerDay = 5
 
-  // v11 profile migration:
+  // v13 profile migration:
   // 旧profileBlockがブラウザのlocalStorageに残っている場合でも、
-  // 応樹さんから届いた正式プロフィールへ自動反映する。
-  const hasNewProfile =
-    typeof saved.profileBlock === 'string' &&
-    saved.profileBlock.includes('32年間') &&
-    saved.profileBlock.includes('累計2万人以上')
+  // 1) 「\\n」が文字として表示される不具合
+  // 2) 長すぎる旧プロフィール
+  // を自動で短縮版プロフィールへ差し替える。
+  const savedProfile = typeof saved.profileBlock === 'string' ? saved.profileBlock : ''
+  const hasLiteralEscapedNewlines = savedProfile.includes('\\n')
+  const hasOldLongProfile =
+    savedProfile.includes('累計2万人以上｜鑑定実績') ||
+    savedProfile.includes('才能・強み・使命を明確化し、人生を加速させるサポート')
+  const hasOldShortProfileOrder = savedProfile.includes('32年間で2万人以上を鑑定してきた')
 
-  if (!hasNewProfile) {
+  if (hasLiteralEscapedNewlines || hasOldLongProfile || hasOldShortProfileOrder) {
     merged.profileBlock = defaultSettings.profileBlock
   }
 
