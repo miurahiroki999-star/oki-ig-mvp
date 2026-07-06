@@ -180,3 +180,16 @@ v20で3・5投稿目の固定PNGが実打ち出し時に読み込まれず、fal
 - 3投稿目・5投稿目の承認済み背景を `src/lib/fixedBackgroundData.ts` に dataURL として埋め込み。
 - 外部 `/assets/design/...` パスに依存しないため、Netlify/GitHub反映漏れや画像パス不一致で背景が消えない。
 - 3・5投稿目ではCanvas追加装飾を乗せず、承認済み背景そのものを使用。
+
+
+## v22 hard fixed background
+
+背景不反映の再発防止修正。
+
+- 2投稿目、3投稿目、5投稿目の背景をコード内dataURLに固定。
+- 2投稿目：水彩の葉と金の枠（1投稿目と同系統）
+- 3投稿目：春の花の葉の水彩フレーム（承認済み背景）
+- 5投稿目：優雅なウォーターカラーブランチデザイン（承認済み背景）
+- 2/3/5は外部画像パスに依存しない。
+- 2/3/5の画像読み込みが万一失敗した場合も、Canvas直描きfallbackで背景差分を出す。
+- Slide自体にも backgroundPostIndex を保持し、renderAllSlidesへのpostIndex渡し漏れにも対応。

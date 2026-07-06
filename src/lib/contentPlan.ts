@@ -410,12 +410,12 @@ function buildCaption(captionLead: string, settings: AppSettings, hashtags: stri
   return parts.join('\n')
 }
 
-function buildSlides(core: CoreResult, seed: number, theme: Theme): Slide[] {
+function buildSlides(core: CoreResult, seed: number, theme: Theme, postIndex: number): Slide[] {
   const cta = getThemeCta(theme, seed)
   const roles: { label: string }[] = []
   const slides: Slide[] = []
 
-  slides.push({ index: 1, role: 'TOP', headline: core.topHeadline, subheadline: core.topSub, themeLabel: theme })
+  slides.push({ index: 1, role: 'TOP', headline: core.topHeadline, subheadline: core.topSub, themeLabel: theme, backgroundPostIndex: postIndex })
 
   const middleRoles: Slide['role'][] = ['問題提起', '相談', '見立て', '具体例', '気づき', '行動提案']
   core.slides6.forEach((s, i) => {
@@ -426,11 +426,11 @@ function buildSlides(core: CoreResult, seed: number, theme: Theme): Slide[] {
       mainText: s.mainText,
       highlights: s.highlights,
       bullets: s.bullets,
-      themeLabel: theme
+      themeLabel: theme, backgroundPostIndex: postIndex
     })
   })
 
-  slides.push({ index: 8, role: 'CTA', headline: cta.headline, subheadline: cta.subheadline, themeLabel: theme })
+  slides.push({ index: 8, role: 'CTA', headline: cta.headline, subheadline: cta.subheadline, themeLabel: theme, backgroundPostIndex: postIndex })
   return slides
 }
 
@@ -462,7 +462,7 @@ export async function buildDayPosts(
     const theme = themes[i]
     const seed = seedBase + i + 1
     const core = await generateCore(theme, workingHistory, settings, seed, memo)
-    const slides = buildSlides(core, seed, theme)
+    const slides = buildSlides(core, seed, theme, i + 1)
     const hashtags = core.hashtags
     const caption = buildCaption(core.captionLead, settings, hashtags, seed, theme)
 
@@ -508,7 +508,7 @@ export async function regenerateSinglePost(
   memo?: string
 ): Promise<{ postTitle: string; slides: Slide[]; caption: string; captionLead: string; hashtags: string[]; source: 'ai' | 'local' }> {
   const core = await generateCore(theme, history, settings, seed, memo)
-  const slides = buildSlides(core, seed, theme)
+  const slides = buildSlides(core, seed, theme, 1)
   const hashtags = core.hashtags
   const caption = buildCaption(core.captionLead, settings, hashtags, seed, theme)
   return { postTitle: core.postTitle, slides, caption, captionLead: core.captionLead, hashtags, source: core.source }

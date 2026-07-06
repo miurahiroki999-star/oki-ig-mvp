@@ -6,7 +6,7 @@
 //   - 背景は白を主役にし、ライトグリーンは装飾とアクセントに限定
 
 import { Slide, SlideRole, Theme } from '../types'
-import { POST3_APPROVED_BG_DATA_URL, POST5_APPROVED_BG_DATA_URL } from './fixedBackgroundData'
+import { POST2_APPROVED_BG_DATA_URL, POST3_APPROVED_BG_DATA_URL, POST5_APPROVED_BG_DATA_URL } from './fixedBackgroundData'
 
 export const SLIDE_SIZE = { w: 1080, h: 1350 } // Instagram 4:5
 
@@ -57,6 +57,7 @@ const BACKGROUND_ASSETS: Record<BackgroundKind, string> = {
 // 3投稿目・5投稿目は、ひろきさん確認済み背景をdataURLとしてコード内埋め込み。
 // 4投稿目は背景PNGを使わず、丸モチーフをCanvasで描画。
 const POST_FIXED_BACKGROUND_DATA_URLS: Partial<Record<number, string>> = {
+  2: POST2_APPROVED_BG_DATA_URL,
   3: POST3_APPROVED_BG_DATA_URL,
   5: POST5_APPROVED_BG_DATA_URL
 }
@@ -183,6 +184,102 @@ function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number
 
   ctx.restore()
 }
+
+
+
+function drawOliveBranch(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, angleDeg: number, mirror: boolean) {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.scale(mirror ? -1 : 1, 1)
+  ctx.rotate((angleDeg * Math.PI) / 180)
+
+  ctx.strokeStyle = COLOR_ACCENT_GOLD
+  ctx.globalAlpha = 0.42
+  ctx.lineWidth = 2 * scale
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.quadraticCurveTo(120 * scale, -92 * scale, 290 * scale, -130 * scale)
+  ctx.stroke()
+
+  const leaves = [
+    [44, -18, -38, 76, 16],
+    [84, -50, -12, 84, 17],
+    [126, -72, 18, 76, 16],
+    [172, -92, -26, 82, 17],
+    [218, -110, 12, 74, 15],
+    [262, -124, -18, 66, 14]
+  ]
+
+  leaves.forEach(([lx, ly, rot, len, wid], i) => {
+    ctx.save()
+    ctx.translate((lx as number) * scale, (ly as number) * scale)
+    ctx.rotate(((rot as number) * Math.PI) / 180)
+    drawLeaf(ctx, (len as number) * scale, (wid as number) * scale, i % 2 ? COLOR_LIGHT_GREEN_2 : COLOR_LIGHT_GREEN, 0.55)
+    ctx.restore()
+  })
+
+  ctx.fillStyle = COLOR_LIGHT_GREEN
+  ctx.globalAlpha = 0.52
+  ;[
+    [92, -35],
+    [196, -98],
+    [248, -118]
+  ].forEach(([ox, oy]) => {
+    ctx.beginPath()
+    ctx.ellipse((ox as number) * scale, (oy as number) * scale, 10 * scale, 16 * scale, -0.25, 0, Math.PI * 2)
+    ctx.fill()
+  })
+
+  ctx.restore()
+}
+
+
+function drawHardFixedFallbackBackground(ctx: CanvasRenderingContext2D, w: number, h: number, postIndex?: number) {
+  const motif = motifIndexFor(postIndex)
+  if (![2, 3, 5].includes(motif)) return
+
+  // 読み込み失敗時の最後の保険。背景が消えるより、多少シンプルでも確実に差分を出す。
+  ctx.save()
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+
+  const green = 'rgba(142, 218, 126, 0.34)'
+  const greenSoft = 'rgba(182, 243, 168, 0.28)'
+  const gold = 'rgba(183, 154, 93, 0.26)'
+
+  if (motif === 2) {
+    drawCornerDecor(ctx, w, h)
+  }
+
+  if (motif === 3) {
+    // 承認済み背景3に寄せた、上下左右で明確な葉っぱB。
+    drawBranchCluster(ctx, -24, h * 0.16, 1.25, 20, false, 1.0)
+    drawBranchCluster(ctx, w + 20, h * 0.82, 1.12, 202, true, 1.0)
+    ctx.strokeStyle = gold
+    ctx.lineWidth = 1.6
+    ctx.beginPath()
+    ctx.moveTo(w * 0.10, h * 0.18)
+    ctx.bezierCurveTo(w * 0.34, h * 0.12, w * 0.55, h * 0.25, w * 0.82, h * 0.16)
+    ctx.stroke()
+  }
+
+  if (motif === 5) {
+    // 承認済み背景5に寄せた、対角オリーブ枝系。
+    drawOliveBranch(ctx, w * 0.04, h * 0.72, 1.18, -32, false)
+    drawOliveBranch(ctx, w * 0.94, h * 0.18, 1.02, 150, true)
+    ctx.strokeStyle = gold
+    ctx.lineWidth = 1.6
+    ;[0.15, 0.83].forEach((yy) => {
+      ctx.beginPath()
+      ctx.moveTo(w * 0.04, h * yy)
+      ctx.bezierCurveTo(w * 0.32, h * (yy + 0.06), w * 0.62, h * (yy - 0.06), w * 0.96, h * yy)
+      ctx.stroke()
+    })
+  }
+
+  ctx.restore()
+}
+
 
 function drawCtaFrame(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.save()
@@ -845,6 +942,7 @@ function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: numb
   } else if (!isFirstPost) {
     drawFrame(ctx, w, h)
   }
+  if (!bgAsset) drawHardFixedFallbackBackground(ctx, w, h, postIndex)
   drawThemeAtmosphere(ctx, w, h, postIndex, 'TOP')
   drawThemeLabel(ctx, w, theme)
 
@@ -910,6 +1008,7 @@ function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, sub
   } else if (!isFirstPost) {
     drawFrame(ctx, w, h)
   }
+  if (!bgAsset) drawHardFixedFallbackBackground(ctx, w, h, postIndex)
   drawThemeAtmosphere(ctx, w, h, postIndex, 'CTA')
   drawThemeLabel(ctx, w, theme)
   drawCtaFrame(ctx, w, h)
@@ -980,6 +1079,7 @@ function renderPointStyleSlide(
   } else if (!isFirstPost) {
     drawFrame(ctx, w, h)
   }
+  if (!bgAsset) drawHardFixedFallbackBackground(ctx, w, h, postIndex)
   drawThemeAtmosphere(ctx, w, h, postIndex, role)
   drawThemeLabel(ctx, w, theme)
 
@@ -1088,14 +1188,15 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
   canvas.width = w
   canvas.height = h
   const ctx = canvas.getContext('2d')!
+  const effectivePostIndex = postIndex || slide.backgroundPostIndex
   const bgKind: BackgroundKind = slide.role === 'TOP' ? 'top' : slide.role === 'CTA' ? 'cta' : 'middle'
-  const motif = motifIndexFor(postIndex)
-  const bgAsset = motif === 4 ? null : await loadBackgroundAsset(bgKind, postIndex)
+  const motif = motifIndexFor(effectivePostIndex)
+  const bgAsset = motif === 4 ? null : await loadBackgroundAsset(bgKind, effectivePostIndex)
 
   if (slide.role === 'TOP') {
-    renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset, theme, postIndex)
+    renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset, theme, effectivePostIndex)
   } else if (slide.role === 'CTA') {
-    renderCtaSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', displayName, title, bgAsset, theme, postIndex)
+    renderCtaSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', displayName, title, bgAsset, theme, effectivePostIndex)
   } else {
     renderPointStyleSlide(
       ctx,
@@ -1110,7 +1211,7 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
       String(slide.index).padStart(2, '0'),
       bgAsset,
       theme,
-      postIndex,
+      effectivePostIndex,
       slide.role
     )
   }

@@ -76,6 +76,7 @@ export interface Slide {
   highlights?: string[] // mainText内で淡いグリーンハイライトする語
   bullets?: string[] // 下部の補足箇条書き
   themeLabel?: string // 画像上部に出す英字＋日本語テーマラベル
+  backgroundPostIndex?: number // 背景固定用の投稿番号
   imageDataUrl?: string
 }
 
