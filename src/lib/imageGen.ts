@@ -111,7 +111,14 @@ function drawThemeLabel(ctx: CanvasRenderingContext2D, w: number, theme?: Theme)
 // 投稿番号(1〜5)から背景モチーフ番号を決める。5投稿を超える場合は1〜5を循環させる。
 // テーマ名(健康/人間関係/...)ではなく「その日の何投稿目か」でモチーフを決めることで、
 // テーマの並び替え(ユーザーがテーマを指定した場合の companionThemes 並び替え)に関わらず
-// 「1投稿目だけ葉っぱ、2投稿目と3投稿目は一目で違う」という要件を確実に満たす。
+// 投稿番号ごとの背景固定ルールを確実に満たす。
+//
+// v19 固定ルール（投稿番号ベース／テーマに関係なく共通）：
+//   1 ＝ 葉っぱA　　　（ブランド入口。bg-top/middle/cta.png ＋ drawCornerDecor）
+//   2 ＝ 葉っぱA’　　（1投稿目と同系統。控えめ・配置違いの葉クラスター）
+//   3 ＝ 葉っぱB　　　（1・2投稿目と明らかに違う枝もの・丸みのある葉）
+//   4 ＝ 丸モチーフ　（円・丸の重なり）
+//   5 ＝ 葉っぱC　　　（3投稿目とも1・2投稿目とも違う、華やか・粒感のある葉）
 function motifIndexFor(postIndex?: number): number {
   const p = postIndex && postIndex > 0 ? Math.floor(postIndex) : 1
   return ((p - 1) % 5) + 1
@@ -134,32 +141,29 @@ function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number
   const gold = (alpha: number) => `rgba(183, 154, 93, ${alpha * weaken})`
 
   if (motif === 2) {
-    // 2投稿目：水彩にじみ＋ゆるい曲線。円・フレーム・点描とは明確に違う。
-    drawWatercolorBlob(ctx, w * 0.10, h * 0.12, w * 0.34, h * 0.22, COLOR_LIGHT_GREEN, 0.18 * weaken, 54, 201)
-    drawWatercolorBlob(ctx, w * 0.92, h * 0.16, w * 0.28, h * 0.20, COLOR_LIGHT_GREEN_2, 0.16 * weaken, 50, 203)
-    drawWatercolorBlob(ctx, w * 0.10, h * 0.88, w * 0.32, h * 0.22, COLOR_LIGHT_GREEN_2, 0.17 * weaken, 48, 205)
-    drawWatercolorBlob(ctx, w * 0.92, h * 0.84, w * 0.30, h * 0.20, COLOR_LIGHT_GREEN, 0.15 * weaken, 48, 207)
+    // 2投稿目＝葉っぱA’：1投稿目と同系統の葉クラスターだが、
+    // 配置を左上・右下の2隅だけに絞り、枚数とアルファを落として「控えめな続き」に見せる。
+    drawLeafCluster(ctx, -14, 30, 1.05, 22, false, { alphaMult: 0.72 * weaken, leafCount: 4 })
+    drawLeafCluster(ctx, w + 20, h - 240, 0.92, 198, true, { alphaMult: 0.68 * weaken, leafCount: 4 })
 
-    ctx.strokeStyle = green(0.42)
-    ctx.lineWidth = 3.6
-    ;[0.15, 0.22, 0.78, 0.85].forEach((yy, idx) => {
-      ctx.beginPath()
-      ctx.moveTo(w * 0.04, h * yy)
-      ctx.bezierCurveTo(w * 0.26, h * (yy + 0.055), w * 0.48, h * (yy - 0.07), w * 0.70, h * yy)
-      ctx.bezierCurveTo(w * 0.83, h * (yy + 0.045), w * 0.93, h * (yy - 0.035), w * 0.99, h * yy)
-      ctx.stroke()
-      if (idx % 2 === 0) {
-        ctx.strokeStyle = gold(0.24)
-        ctx.lineWidth = 1.6
-      } else {
-        ctx.strokeStyle = green(0.42)
-        ctx.lineWidth = 3.6
-      }
-    })
+    // うっすら金の弧を1本だけ添えて「1投稿目の続き」感を補強する。
+    ctx.strokeStyle = gold(0.20)
+    ctx.lineWidth = 1.4
+    ctx.beginPath()
+    ctx.moveTo(w * 0.30, h * 0.05)
+    ctx.bezierCurveTo(w * 0.55, h * 0.12, w * 0.70, h * 0.02, w * 0.95, h * 0.09)
+    ctx.stroke()
   }
 
   if (motif === 3) {
-    // 3投稿目：円・丸の重なり。2投稿目の曲線とは別物に見せる。
+    // 3投稿目＝葉っぱB：放射状クラスター(A/A’)とは配置そのものが違う「枝もの」。
+    // 丸みのある葉を使い、1本の枝が対角に伸びるシルエットで一目で別柄だと分かる。
+    drawBranchCluster(ctx, -10, h * 0.14, 1.15, 18, false, weaken)
+    drawBranchCluster(ctx, w + 14, h * 0.90, 1.0, 198, true, weaken)
+  }
+
+  if (motif === 4) {
+    // 4投稿目＝丸モチーフ：円・丸の重なり。葉っぱ系(2・3・5)とは明確に違う幾何モチーフ。
     const circleSets = [
       [w * 0.12, h * 0.18, 92],
       [w * 0.88, h * 0.22, 126],
@@ -182,91 +186,13 @@ function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number
     })
   }
 
-  if (motif === 4) {
-    // 4投稿目：線・フレーム・ガイド。円や波ではなく、整理された構造感。
-    const insetX = w * 0.075
-    const insetY = h * 0.105
-
-    ctx.strokeStyle = gold(0.36)
-    ctx.lineWidth = 2
-    roundedRectPath(ctx, insetX, insetY, w - insetX * 2, h - insetY * 2, 22)
-    ctx.stroke()
-
-    ctx.strokeStyle = green(0.38)
-    ctx.lineWidth = 2.2
-    ;[0.22, 0.78].forEach((yy) => {
-      ctx.beginPath()
-      ctx.moveTo(w * 0.12, h * yy)
-      ctx.lineTo(w * 0.88, h * yy)
-      ctx.stroke()
-    })
-    ;[0.20, 0.80].forEach((xx) => {
-      ctx.beginPath()
-      ctx.moveTo(w * xx, h * 0.13)
-      ctx.lineTo(w * xx, h * 0.28)
-      ctx.moveTo(w * xx, h * 0.72)
-      ctx.lineTo(w * xx, h * 0.87)
-      ctx.stroke()
-    })
-
-    // 四隅のL字ガイド
-    const l = 78
-    const corners = [
-      [insetX + 16, insetY + 16, 1, 1],
-      [w - insetX - 16, insetY + 16, -1, 1],
-      [insetX + 16, h - insetY - 16, 1, -1],
-      [w - insetX - 16, h - insetY - 16, -1, -1]
-    ]
-    ctx.strokeStyle = green2(0.50)
-    ctx.lineWidth = 4
-    corners.forEach(([x, y, sx, sy]) => {
-      ctx.beginPath()
-      ctx.moveTo(x as number, y as number)
-      ctx.lineTo((x as number) + (l * (sx as number)), y as number)
-      ctx.moveTo(x as number, y as number)
-      ctx.lineTo(x as number, (y as number) + (l * (sy as number)))
-      ctx.stroke()
-    })
-  }
-
   if (motif === 5) {
-    // 5投稿目：粒子・点描・淡い光。3投稿目の円、4投稿目の線と明確に違う。
-    const clusters = [
-      [w * 0.14, h * 0.18, 34],
-      [w * 0.86, h * 0.18, 38],
-      [w * 0.18, h * 0.82, 42],
-      [w * 0.84, h * 0.80, 34]
-    ]
-
-    clusters.forEach(([cx, cy, count], ci) => {
-      for (let i = 0; i < (count as number); i++) {
-        const angle = (Math.PI * 2 * i) / (count as number)
-        const rr = 18 + ((i * 37 + ci * 19) % 110)
-        const x = (cx as number) + Math.cos(angle) * rr
-        const y = (cy as number) + Math.sin(angle) * rr * 0.72
-        const r = 1.8 + ((i + ci) % 4) * 0.9
-        ctx.fillStyle = i % 3 === 0 ? gold(0.42) : green(0.38)
-        ctx.beginPath()
-        ctx.arc(x, y, r, 0, Math.PI * 2)
-        ctx.fill()
-      }
-    })
-
-    // 淡い光のリングではなく、放射状の粒子感を薄く出す
-    ctx.strokeStyle = gold(0.20)
-    ctx.lineWidth = 1.4
-    ;[
-      [w * 0.12, h * 0.18],
-      [w * 0.86, h * 0.82]
-    ].forEach(([cx, cy]) => {
-      for (let i = 0; i < 16; i++) {
-        const a = (Math.PI * 2 * i) / 16
-        ctx.beginPath()
-        ctx.moveTo((cx as number) + Math.cos(a) * 26, (cy as number) + Math.sin(a) * 26)
-        ctx.lineTo((cx as number) + Math.cos(a) * 108, (cy as number) + Math.sin(a) * 108)
-        ctx.stroke()
-      }
-    })
+    // 5投稿目＝葉っぱC：3投稿目(枝もの)とも1・2投稿目(放射状クラスター)とも違う、
+    // 上下に配置した小さめの葉＋きらめきの粒で「3種類目の植物系」として独立させる。
+    drawSparkleLeafCluster(ctx, 6, 10, 1.0, 8, false, weaken)
+    drawSparkleLeafCluster(ctx, w - 10, 20, 0.86, 176, true, weaken)
+    drawSparkleLeafCluster(ctx, 10, h - 40, 0.9, -20, false, weaken)
+    drawSparkleLeafCluster(ctx, w - 6, h - 30, 1.05, 200, true, weaken)
   }
 
   ctx.restore()
@@ -539,7 +465,18 @@ function drawLeaf(ctx: CanvasRenderingContext2D, len: number, width: number, col
   ctx.restore()
 }
 
-function drawLeafCluster(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, angleDeg: number, mirror: boolean) {
+function drawLeafCluster(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  scale: number,
+  angleDeg: number,
+  mirror: boolean,
+  opts?: { alphaMult?: number; leafCount?: number }
+) {
+  const alphaMult = opts?.alphaMult ?? 1
+  const leafCount = opts?.leafCount ?? 5
+
   ctx.save()
   ctx.translate(x, y)
   ctx.scale(mirror ? -1 : 1, 1)
@@ -547,7 +484,7 @@ function drawLeafCluster(ctx: CanvasRenderingContext2D, x: number, y: number, sc
 
   ctx.save()
   ctx.strokeStyle = COLOR_ACCENT_GOLD
-  ctx.globalAlpha = 0.28
+  ctx.globalAlpha = 0.28 * alphaMult
   ctx.lineWidth = 2 * scale
   ctx.lineCap = 'round'
   ctx.beginPath()
@@ -562,12 +499,12 @@ function drawLeafCluster(ctx: CanvasRenderingContext2D, x: number, y: number, sc
     { x: 80, y: 42, r: 12, len: 108, wid: 28, c: COLOR_LIGHT_GREEN, a: 0.62 },
     { x: 118, y: 62, r: 40, len: 92, wid: 24, c: COLOR_LIGHT_GREEN_2, a: 0.58 },
     { x: 145, y: 86, r: 68, len: 70, wid: 18, c: COLOR_LIGHT_GREEN, a: 0.54 }
-  ]
+  ].slice(0, leafCount)
   leafDefs.forEach((l) => {
     ctx.save()
     ctx.translate(l.x * scale, l.y * scale)
     ctx.rotate((l.r * Math.PI) / 180)
-    drawLeaf(ctx, l.len * scale, l.wid * scale, l.c, l.a)
+    drawLeaf(ctx, l.len * scale, l.wid * scale, l.c, l.a * alphaMult)
     ctx.restore()
   })
 
@@ -579,7 +516,7 @@ function drawLeafCluster(ctx: CanvasRenderingContext2D, x: number, y: number, sc
     { x: 70, y: 4, r: 2 },
     { x: 18, y: 44, r: 2.2 }
   ].forEach((p) => {
-    ctx.globalAlpha = 0.42
+    ctx.globalAlpha = 0.42 * alphaMult
     ctx.beginPath()
     ctx.arc(p.x * scale, p.y * scale, p.r * scale, 0, Math.PI * 2)
     ctx.fill()
@@ -595,6 +532,145 @@ function drawCornerDecor(ctx: CanvasRenderingContext2D, w: number, h: number) {
   drawLeafCluster(ctx, w + 10, 64, 0.88, 162, true)
   drawLeafCluster(ctx, -8, h - 260, 1.05, -28, false)
   drawLeafCluster(ctx, w + 18, h - 280, 1.06, 205, true)
+}
+
+// 丸みのある楕円の葉。drawLeaf(先の尖った笹葉)とは輪郭が明確に違うため、
+// 3投稿目「葉っぱB」に使うと1・2投稿目と一目で別柄だと分かる。
+function drawRoundLeaf(ctx: CanvasRenderingContext2D, size: number, color: string, alpha: number) {
+  ctx.save()
+  ctx.filter = 'blur(4px)'
+  ctx.globalAlpha = alpha * 0.45
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.ellipse(0, 0, size * 1.12, size * 0.92, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
+  ctx.save()
+  ctx.globalAlpha = alpha * 0.8
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.ellipse(0, 0, size, size * 0.8, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.globalAlpha = alpha * 0.28
+  ctx.strokeStyle = color
+  ctx.lineWidth = Math.max(1, size * 0.045)
+  ctx.beginPath()
+  ctx.moveTo(-size * 0.75, 0)
+  ctx.lineTo(size * 0.75, 0)
+  ctx.stroke()
+  ctx.restore()
+}
+
+// 枝もの風の「葉っぱB」ブランチ。1本の枝から丸みの葉が交互に生えるシルエットで、
+// 放射状クラスター（葉っぱA/A’）とは配置そのものが違って見える。
+function drawBranchCluster(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, angleDeg: number, mirror: boolean, alphaMult = 1) {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.scale(mirror ? -1 : 1, 1)
+  ctx.rotate((angleDeg * Math.PI) / 180)
+
+  // 枝の芯
+  ctx.save()
+  ctx.strokeStyle = COLOR_ACCENT_GOLD
+  ctx.globalAlpha = 0.34 * alphaMult
+  ctx.lineWidth = 2.4 * scale
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.bezierCurveTo(40 * scale, 30 * scale, 90 * scale, 60 * scale, 168 * scale, 118 * scale)
+  ctx.stroke()
+  ctx.restore()
+
+  const roundLeafDefs = [
+    { x: 14, y: 6, r: -30, size: 26, c: COLOR_LIGHT_GREEN_2, a: 0.68 },
+    { x: 40, y: 24, r: 20, size: 34, c: COLOR_LIGHT_GREEN, a: 0.62 },
+    { x: 70, y: 44, r: -14, size: 40, c: COLOR_LIGHT_GREEN_2, a: 0.58 },
+    { x: 104, y: 68, r: 26, size: 36, c: COLOR_LIGHT_GREEN, a: 0.54 },
+    { x: 138, y: 92, r: -8, size: 30, c: COLOR_LIGHT_GREEN_2, a: 0.5 },
+    { x: 165, y: 116, r: 16, size: 22, c: COLOR_LIGHT_GREEN, a: 0.46 }
+  ]
+  roundLeafDefs.forEach((l) => {
+    ctx.save()
+    ctx.translate(l.x * scale, l.y * scale)
+    ctx.rotate((l.r * Math.PI) / 180)
+    drawRoundLeaf(ctx, l.size * scale, l.c, l.a * alphaMult)
+    ctx.restore()
+  })
+
+  ctx.save()
+  ctx.fillStyle = COLOR_ACCENT_GOLD
+  ;[
+    { x: 26, y: -14, r: 2.4 },
+    { x: 86, y: 30, r: 2 },
+    { x: 128, y: 78, r: 2.2 }
+  ].forEach((p) => {
+    ctx.globalAlpha = 0.36 * alphaMult
+    ctx.beginPath()
+    ctx.arc(p.x * scale, p.y * scale, p.r * scale, 0, Math.PI * 2)
+    ctx.fill()
+  })
+  ctx.restore()
+
+  ctx.restore()
+}
+
+// 華やか＋粒感のある「葉っぱC」。葉は小さめ・上下配置にまとめ、
+// 光の粒（きらめき）を添えることで3投稿目の枝ものとも明確に違う印象にする。
+function drawSparkleLeafCluster(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, angleDeg: number, mirror: boolean, alphaMult = 1) {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.scale(mirror ? -1 : 1, 1)
+  ctx.rotate((angleDeg * Math.PI) / 180)
+
+  const smallLeafDefs = [
+    { x: 10, y: 2, r: -40, len: 44, wid: 13, c: COLOR_LIGHT_GREEN, a: 0.6 },
+    { x: 26, y: 16, r: -10, len: 52, wid: 15, c: COLOR_LIGHT_GREEN_2, a: 0.56 },
+    { x: 44, y: 32, r: 22, len: 46, wid: 13, c: COLOR_LIGHT_GREEN, a: 0.5 }
+  ]
+  smallLeafDefs.forEach((l) => {
+    ctx.save()
+    ctx.translate(l.x * scale, l.y * scale)
+    ctx.rotate((l.r * Math.PI) / 180)
+    drawLeaf(ctx, l.len * scale, l.wid * scale, l.c, l.a * alphaMult)
+    ctx.restore()
+  })
+
+  // きらめき（4方向の光の粒）
+  function sparkle(cx: number, cy: number, r: number, alpha: number) {
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.globalAlpha = alpha * alphaMult
+    ctx.fillStyle = COLOR_ACCENT_GOLD
+    ctx.beginPath()
+    ctx.moveTo(0, -r)
+    ctx.quadraticCurveTo(r * 0.22, -r * 0.22, r, 0)
+    ctx.quadraticCurveTo(r * 0.22, r * 0.22, 0, r)
+    ctx.quadraticCurveTo(-r * 0.22, r * 0.22, -r, 0)
+    ctx.quadraticCurveTo(-r * 0.22, -r * 0.22, 0, -r)
+    ctx.closePath()
+    ctx.fill()
+    ctx.restore()
+  }
+  sparkle(58 * scale, 4 * scale, 9 * scale, 0.46)
+  sparkle(4 * scale, 50 * scale, 6.5 * scale, 0.4)
+  sparkle(78 * scale, 46 * scale, 5.5 * scale, 0.36)
+
+  ctx.save()
+  ctx.fillStyle = COLOR_LIGHT_GREEN
+  ;[
+    { x: 20, y: 46, r: 2 },
+    { x: 62, y: 26, r: 1.7 },
+    { x: 90, y: 12, r: 1.6 }
+  ].forEach((p) => {
+    ctx.globalAlpha = 0.4 * alphaMult
+    ctx.beginPath()
+    ctx.arc(p.x * scale, p.y * scale, p.r * scale, 0, Math.PI * 2)
+    ctx.fill()
+  })
+  ctx.restore()
+
+  ctx.restore()
 }
 
 function drawDivider(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, color = COLOR_LABEL) {
