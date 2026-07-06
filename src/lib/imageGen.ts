@@ -6,6 +6,7 @@
 //   - 背景は白を主役にし、ライトグリーンは装飾とアクセントに限定
 
 import { Slide, SlideRole, Theme } from '../types'
+import { POST3_APPROVED_BG_DATA_URL, POST5_APPROVED_BG_DATA_URL } from './fixedBackgroundData'
 
 export const SLIDE_SIZE = { w: 1080, h: 1350 } // Instagram 4:5
 
@@ -53,11 +54,11 @@ const BACKGROUND_ASSETS: Record<BackgroundKind, string> = {
 
 // v20 final:
 // 1投稿目・2投稿目は既存の葉っぱ系背景。
-// 3投稿目・5投稿目は、ひろきさん確認済みの固定PNG背景を使用。
+// 3投稿目・5投稿目は、ひろきさん確認済み背景をdataURLとしてコード内埋め込み。
 // 4投稿目は背景PNGを使わず、丸モチーフをCanvasで描画。
-const POST_FIXED_BACKGROUND_ASSETS: Partial<Record<number, string>> = {
-  3: '/assets/design/bg-post-3-approved.png',
-  5: '/assets/design/bg-post-5-approved.png'
+const POST_FIXED_BACKGROUND_DATA_URLS: Partial<Record<number, string>> = {
+  3: POST3_APPROVED_BG_DATA_URL,
+  5: POST5_APPROVED_BG_DATA_URL
 }
 
 const backgroundCache = new Map<string, Promise<HTMLImageElement | null>>()
@@ -74,8 +75,9 @@ function loadImageAsset(src: string): Promise<HTMLImageElement | null> {
 
 function loadBackgroundAsset(kind: BackgroundKind, postIndex?: number): Promise<HTMLImageElement | null> {
   const motif = motifIndexFor(postIndex)
-  const src = POST_FIXED_BACKGROUND_ASSETS[motif] || BACKGROUND_ASSETS[kind]
-  const key = `${kind}:${motif}:${src}`
+  const fixedDataUrl = POST_FIXED_BACKGROUND_DATA_URLS[motif]
+  const src = fixedDataUrl || BACKGROUND_ASSETS[kind]
+  const key = `${kind}:${motif}:${fixedDataUrl ? 'embedded-approved-bg' : src}`
   const cached = backgroundCache.get(key)
   if (cached) return cached
   const promise = loadImageAsset(src)
@@ -126,9 +128,9 @@ function drawThemeLabel(ctx: CanvasRenderingContext2D, w: number, theme?: Theme)
 // v20 最終固定ルール（投稿番号ベース／テーマに関係なく共通）：
 //   1 ＝ 葉っぱA　　　（ブランド入口。bg-top/middle/cta.png ＋ drawCornerDecor）
 //   2 ＝ 葉っぱA’　　（1投稿目と同じ既存水彩葉っぱ背景）
-//   3 ＝ 葉っぱB　　　（承認済み固定PNG背景）
+//   3 ＝ 葉っぱB　　　（承認済み背景をコード内dataURLで固定表示）
 //   4 ＝ 丸モチーフ　（円・丸の重なり）
-//   5 ＝ 葉っぱC　　　（承認済み固定PNG背景）
+//   5 ＝ 葉っぱC　　　（承認済み背景をコード内dataURLで固定表示）
 function motifIndexFor(postIndex?: number): number {
   const p = postIndex && postIndex > 0 ? Math.floor(postIndex) : 1
   return ((p - 1) % 5) + 1
