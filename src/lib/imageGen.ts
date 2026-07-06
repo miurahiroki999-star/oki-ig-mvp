@@ -5,7 +5,7 @@
 //   - 中ページは「見立て」参考のように、濃い明朝本文＋淡いグリーンの語句ハイライト＋下部ピル型署名
 //   - 背景は白を主役にし、ライトグリーンは装飾とアクセントに限定
 
-import { Slide, Theme } from '../types'
+import { Slide, SlideRole, Theme } from '../types'
 
 export const SLIDE_SIZE = { w: 1080, h: 1350 } // Instagram 4:5
 
@@ -108,35 +108,60 @@ function drawThemeLabel(ctx: CanvasRenderingContext2D, w: number, theme?: Theme)
 }
 
 
-function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number, theme?: Theme) {
-  if (!theme) return
+// 投稿番号(1〜5)から背景モチーフ番号を決める。5投稿を超える場合は1〜5を循環させる。
+// テーマ名(健康/人間関係/...)ではなく「その日の何投稿目か」でモチーフを決めることで、
+// テーマの並び替え(ユーザーがテーマを指定した場合の companionThemes 並び替え)に関わらず
+// 「1投稿目だけ葉っぱ、2投稿目と3投稿目は一目で違う」という要件を確実に満たす。
+function motifIndexFor(postIndex?: number): number {
+  const p = postIndex && postIndex > 0 ? Math.floor(postIndex) : 1
+  return ((p - 1) % 5) + 1
+}
+
+function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number, postIndex?: number, role?: SlideRole) {
+  const motif = motifIndexFor(postIndex)
+
+  // 1投稿目(葉っぱ・水彩植物)は bg-*.png 側の柄が主役なので、ここでは何も足さない。
+  if (motif === 1) return
 
   ctx.save()
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
 
-  const green = 'rgba(142, 218, 126, 0.24)'
-  const greenSoft = 'rgba(177, 239, 164, 0.20)'
-  const gold = 'rgba(183, 154, 93, 0.22)'
+  // 7枚目(行動提案=本編完結ページ)は静かな余白を優先し、装飾を弱める。
+  const calm = role === '行動提案'
+  const a = (v: number) => v * (calm ? 0.5 : 1)
 
-  if (theme === '健康') {
-    // 既存の水彩植物背景を活かす。追加柄は最小限。
+  const green = `rgba(142, 218, 126, ${a(0.30)})`
+  const greenSoft = `rgba(177, 239, 164, ${a(0.26)})`
+  const gold = `rgba(183, 154, 93, ${a(0.30)})`
+
+  if (motif === 2) {
+    // 2投稿目: 水彩にじみ＋やさしい曲線。葉っぱ・円は使わない。
+    drawWatercolorBlob(ctx, w * 0.08, h * 0.08, w * 0.24, h * 0.16, COLOR_LIGHT_GREEN, a(0.14), 46, 101)
+    drawWatercolorBlob(ctx, w * 0.94, h * 0.14, w * 0.22, h * 0.15, COLOR_LIGHT_GREEN_2, a(0.12), 40, 113)
+    drawWatercolorBlob(ctx, w * 0.10, h * 0.92, w * 0.24, h * 0.16, COLOR_LIGHT_GREEN_2, a(0.13), 42, 127)
+    drawWatercolorBlob(ctx, w * 0.92, h * 0.90, w * 0.22, h * 0.15, COLOR_LIGHT_GREEN, a(0.12), 40, 139)
+
     ctx.strokeStyle = green
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(w * 0.08, h * 0.15)
-    ctx.bezierCurveTo(w * 0.18, h * 0.10, w * 0.22, h * 0.20, w * 0.30, h * 0.13)
-    ctx.stroke()
+    ctx.lineWidth = 2.4
+    ;[0.16, 0.20, 0.80, 0.84].forEach((yy) => {
+      ctx.beginPath()
+      ctx.moveTo(w * 0.06, h * yy)
+      ctx.bezierCurveTo(w * 0.30, h * (yy + 0.05), w * 0.50, h * (yy - 0.05), w * 0.72, h * yy)
+      ctx.bezierCurveTo(w * 0.84, h * (yy + 0.03), w * 0.92, h * (yy - 0.03), w * 0.98, h * yy)
+      ctx.stroke()
+    })
   }
 
-  if (theme === '人間関係') {
+  if (motif === 3) {
+    // 3投稿目: 円・丸モチーフの重なり。2投稿目(曲線)とは形状が明確に異なる。
     ctx.strokeStyle = greenSoft
-    ctx.lineWidth = 2.4
+    ctx.lineWidth = 2.6
     ;[
-      [w * 0.12, h * 0.18, 74],
-      [w * 0.88, h * 0.22, 92],
-      [w * 0.16, h * 0.82, 108],
-      [w * 0.86, h * 0.80, 70]
+      [w * 0.14, h * 0.16, 96],
+      [w * 0.86, h * 0.20, 118],
+      [w * 0.18, h * 0.84, 128],
+      [w * 0.84, h * 0.82, 92]
     ].forEach(([cx, cy, r]) => {
       ctx.beginPath()
       ctx.arc(cx as number, cy as number, r as number, 0, Math.PI * 2)
@@ -145,112 +170,82 @@ function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number
       ctx.arc(cx as number, cy as number, (r as number) * 0.62, 0, Math.PI * 2)
       ctx.stroke()
     })
-  }
-
-  if (theme === 'お金') {
-    ctx.strokeStyle = gold
-    ctx.lineWidth = 2
-    ;[0.14, 0.22, 0.80, 0.88].forEach((yy) => {
-      ctx.beginPath()
-      ctx.moveTo(w * 0.13, h * yy)
-      ctx.bezierCurveTo(w * 0.36, h * (yy - 0.035), w * 0.62, h * (yy + 0.04), w * 0.87, h * yy)
-      ctx.stroke()
-    })
     ctx.fillStyle = gold
     ;[
-      [w * 0.17, h * 0.18],
-      [w * 0.83, h * 0.15],
-      [w * 0.20, h * 0.86],
-      [w * 0.78, h * 0.82]
+      [w * 0.20, h * 0.20],
+      [w * 0.80, h * 0.24],
+      [w * 0.22, h * 0.80],
+      [w * 0.80, h * 0.78]
     ].forEach(([x, y]) => {
       ctx.beginPath()
-      ctx.arc(x as number, y as number, 4, 0, Math.PI * 2)
+      ctx.arc(x as number, y as number, 5, 0, Math.PI * 2)
       ctx.fill()
     })
   }
 
-  if (theme === 'ご縁') {
+  if (motif === 4) {
+    // 4投稿目: 細いフレーム線・ガイド線。直線基調で円/波とはっきり区別する。
+    ctx.strokeStyle = gold
+    ctx.lineWidth = 1.6
+    const insetX = w * 0.07
+    const insetY = h * 0.10
+    ctx.strokeRect(insetX, insetY, w - insetX * 2, h - insetY * 2)
+
     ctx.strokeStyle = green
-    ctx.lineWidth = 2.2
-    const nodes = [
-      [w * 0.10, h * 0.17],
-      [w * 0.20, h * 0.25],
-      [w * 0.86, h * 0.18],
-      [w * 0.78, h * 0.30],
-      [w * 0.14, h * 0.82],
-      [w * 0.27, h * 0.78],
-      [w * 0.82, h * 0.82],
-      [w * 0.92, h * 0.73]
-    ]
-    for (let i = 0; i < nodes.length; i += 2) {
-      const a = nodes[i]
-      const b = nodes[i + 1]
+    ctx.lineWidth = 1.4
+    ;[0.12, 0.88].forEach((yy) => {
       ctx.beginPath()
-      ctx.moveTo(a[0], a[1])
-      ctx.lineTo(b[0], b[1])
+      ctx.moveTo(w * 0.10, h * yy)
+      ctx.lineTo(w * 0.32, h * yy)
       ctx.stroke()
-    }
-    ctx.fillStyle = 'rgba(183,154,93,0.28)'
-    nodes.forEach(([x, y]) => {
       ctx.beginPath()
-      ctx.arc(x, y, 6, 0, Math.PI * 2)
-      ctx.fill()
-    })
-  }
-
-  if (theme === '使命') {
-    ctx.strokeStyle = gold
-    ctx.lineWidth = 1.8
-    ;[
-      [w * 0.12, h * 0.16],
-      [w * 0.86, h * 0.82]
-    ].forEach(([cx, cy]) => {
-      for (let i = 0; i < 12; i++) {
-        const a = (Math.PI * 2 * i) / 12
-        ctx.beginPath()
-        ctx.moveTo((cx as number) + Math.cos(a) * 30, (cy as number) + Math.sin(a) * 30)
-        ctx.lineTo((cx as number) + Math.cos(a) * 125, (cy as number) + Math.sin(a) * 125)
-        ctx.stroke()
-      }
-    })
-  }
-
-  if (theme === '瞑想') {
-    ctx.strokeStyle = greenSoft
-    ctx.lineWidth = 2.2
-    ;[0.14, 0.18, 0.82, 0.86].forEach((yy) => {
-      ctx.beginPath()
-      ctx.moveTo(w * 0.08, h * yy)
-      ctx.bezierCurveTo(w * 0.28, h * (yy + 0.035), w * 0.44, h * (yy - 0.035), w * 0.64, h * yy)
-      ctx.bezierCurveTo(w * 0.76, h * (yy + 0.025), w * 0.86, h * (yy - 0.025), w * 0.94, h * yy)
+      ctx.moveTo(w * 0.68, h * yy)
+      ctx.lineTo(w * 0.90, h * yy)
       ctx.stroke()
     })
-  }
-
-  if (theme === '無料診断') {
-    ctx.strokeStyle = greenSoft
-    ctx.lineWidth = 2.4
+    // 角のトンボ風ガイド交点
     ;[
-      [w * 0.13, h * 0.18, 68],
-      [w * 0.85, h * 0.20, 82],
-      [w * 0.18, h * 0.82, 92],
-      [w * 0.84, h * 0.80, 70]
-    ].forEach(([cx, cy, r]) => {
-      ctx.beginPath()
-      ctx.arc(cx as number, cy as number, r as number, 0, Math.PI * 2)
-      ctx.stroke()
-    })
-    ctx.strokeStyle = gold
-    ctx.lineWidth = 3
-    ;[
-      [w * 0.11, h * 0.27],
-      [w * 0.86, h * 0.72]
+      [w * 0.07, h * 0.10],
+      [w * 0.93, h * 0.10],
+      [w * 0.07, h * 0.90],
+      [w * 0.93, h * 0.90]
     ].forEach(([x, y]) => {
       ctx.beginPath()
-      ctx.moveTo(x as number, y as number)
-      ctx.lineTo((x as number) + 18, (y as number) + 24)
-      ctx.lineTo((x as number) + 58, (y as number) - 34)
+      ctx.moveTo((x as number) - 14, y as number)
+      ctx.lineTo((x as number) + 14, y as number)
+      ctx.moveTo(x as number, (y as number) - 14)
+      ctx.lineTo(x as number, (y as number) + 14)
       ctx.stroke()
+    })
+  }
+
+  if (motif === 5) {
+    // 5投稿目: 点描・小粒ドット・淡い光。テキスト帯は避けて周辺に散らす。
+    const rng = makeRng(2026)
+    for (let i = 0; i < 46; i++) {
+      const x = rng() * w
+      const y = rng() * h
+      if (x > w * 0.16 && x < w * 0.84 && y > h * 0.22 && y < h * 0.78) continue
+      const r = 1.6 + rng() * 3.2
+      ctx.fillStyle = rng() > 0.5 ? green : gold
+      ctx.beginPath()
+      ctx.arc(x, y, r, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    drawWatercolorBlob(ctx, w * 0.12, h * 0.14, w * 0.16, h * 0.10, COLOR_LIGHT_GREEN_2, a(0.10), 50, 211)
+    drawWatercolorBlob(ctx, w * 0.90, h * 0.88, w * 0.18, h * 0.12, COLOR_LIGHT_GREEN, a(0.10), 50, 223)
+  }
+
+  // 6枚目(気づき)は転換感を出すため、淡い光の粒を少し足す。
+  if (role === '気づき') {
+    ctx.fillStyle = 'rgba(183,154,93,0.35)'
+    ;[
+      [w * 0.5, h * 0.10],
+      [w * 0.5, h * 0.90]
+    ].forEach(([x, y]) => {
+      ctx.beginPath()
+      ctx.arc(x as number, y as number, 3.4, 0, Math.PI * 2)
+      ctx.fill()
     })
   }
 
@@ -417,8 +412,10 @@ function drawWatercolorBlob(
   ctx.restore()
 }
 
-function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bgAsset?: CanvasImageSource | null, kind: BackgroundKind = 'middle') {
-  if (bgAsset) {
+function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bgAsset?: CanvasImageSource | null, kind: BackgroundKind = 'middle', postIndex?: number) {
+  // 葉っぱ・水彩植物の bg-*.png は「1投稿目」のブランド感専用。2〜5投稿目では使わない。
+  const isFirstPost = !postIndex || postIndex === 1
+  if (bgAsset && isFirstPost) {
     ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, w, h)
 
@@ -757,13 +754,16 @@ function getHeadlineLines(ctx: CanvasRenderingContext2D, headline: string, maxWi
 }
 
 // ---------- TOP / CTA ----------
-function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, footerRight: string, bgAsset?: CanvasImageSource | null, theme?: Theme) {
-  fillBackground(ctx, w, h, bgAsset, 'top')
+function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, footerRight: string, bgAsset?: CanvasImageSource | null, theme?: Theme, postIndex?: number) {
+  fillBackground(ctx, w, h, bgAsset, 'top', postIndex)
+  const isFirstPost = !postIndex || postIndex === 1
   if (!bgAsset) {
     drawFrame(ctx, w, h)
-    drawCornerDecor(ctx, w, h)
+    if (isFirstPost) drawCornerDecor(ctx, w, h)
+  } else if (!isFirstPost) {
+    drawFrame(ctx, w, h)
   }
-  drawThemeAtmosphere(ctx, w, h, theme)
+  drawThemeAtmosphere(ctx, w, h, postIndex, 'TOP')
   drawThemeLabel(ctx, w, theme)
 
   ctx.textAlign = 'center'
@@ -819,13 +819,16 @@ function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: numb
   }
 }
 
-function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, displayName: string, title: string, bgAsset?: CanvasImageSource | null, theme?: Theme) {
-  fillBackground(ctx, w, h, bgAsset, 'cta')
+function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, displayName: string, title: string, bgAsset?: CanvasImageSource | null, theme?: Theme, postIndex?: number) {
+  fillBackground(ctx, w, h, bgAsset, 'cta', postIndex)
+  const isFirstPost = !postIndex || postIndex === 1
   if (!bgAsset) {
     drawFrame(ctx, w, h)
-    drawCornerDecor(ctx, w, h)
+    if (isFirstPost) drawCornerDecor(ctx, w, h)
+  } else if (!isFirstPost) {
+    drawFrame(ctx, w, h)
   }
-  drawThemeAtmosphere(ctx, w, h, theme)
+  drawThemeAtmosphere(ctx, w, h, postIndex, 'CTA')
   drawThemeLabel(ctx, w, theme)
   drawCtaFrame(ctx, w, h)
 
@@ -883,14 +886,19 @@ function renderPointStyleSlide(
   title: string,
   pageLabel: string,
   bgAsset?: CanvasImageSource | null,
-  theme?: Theme
+  theme?: Theme,
+  postIndex?: number,
+  role?: SlideRole
 ) {
-  fillBackground(ctx, w, h, bgAsset, 'middle')
+  fillBackground(ctx, w, h, bgAsset, 'middle', postIndex)
+  const isFirstPost = !postIndex || postIndex === 1
   if (!bgAsset) {
     drawFrame(ctx, w, h)
-    drawCornerDecor(ctx, w, h)
+    if (isFirstPost) drawCornerDecor(ctx, w, h)
+  } else if (!isFirstPost) {
+    drawFrame(ctx, w, h)
   }
-  drawThemeAtmosphere(ctx, w, h, theme)
+  drawThemeAtmosphere(ctx, w, h, postIndex, role)
   drawThemeLabel(ctx, w, theme)
 
   // 上部ラベル：明朝体で統一。色はライトグリーンのアクセントのみ。
@@ -990,7 +998,7 @@ function renderPointStyleSlide(
   pageNumberFooter(ctx, w, h, pageLabel)
 }
 
-export async function renderSlideImage(slide: Slide, totalSlides: number, displayName: string, title: string, theme?: Theme): Promise<string> {
+export async function renderSlideImage(slide: Slide, totalSlides: number, displayName: string, title: string, theme?: Theme, postIndex?: number): Promise<string> {
   await ensureFontsLoaded()
 
   const { w, h } = SLIDE_SIZE
@@ -1002,9 +1010,9 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
   const bgAsset = await loadBackgroundAsset(bgKind)
 
   if (slide.role === 'TOP') {
-    renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset, theme)
+    renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset, theme, postIndex)
   } else if (slide.role === 'CTA') {
-    renderCtaSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', displayName, title, bgAsset, theme)
+    renderCtaSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', displayName, title, bgAsset, theme, postIndex)
   } else {
     renderPointStyleSlide(
       ctx,
@@ -1018,7 +1026,9 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
       title,
       String(slide.index).padStart(2, '0'),
       bgAsset,
-      theme
+      theme,
+      postIndex,
+      slide.role
     )
   }
   void totalSlides
@@ -1026,10 +1036,10 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
   return canvas.toDataURL('image/png')
 }
 
-export async function renderAllSlides(slides: Slide[], displayName: string, title: string, theme?: Theme): Promise<Slide[]> {
+export async function renderAllSlides(slides: Slide[], displayName: string, title: string, theme?: Theme, postIndex?: number): Promise<Slide[]> {
   const rendered: Slide[] = []
   for (const s of slides) {
-    const imageDataUrl = await renderSlideImage(s, slides.length, displayName, title, theme)
+    const imageDataUrl = await renderSlideImage(s, slides.length, displayName, title, theme, postIndex)
     rendered.push({ ...s, imageDataUrl })
   }
   return rendered
