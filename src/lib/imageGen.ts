@@ -120,132 +120,152 @@ function motifIndexFor(postIndex?: number): number {
 function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number, postIndex?: number, role?: SlideRole) {
   const motif = motifIndexFor(postIndex)
 
-  // 1投稿目(葉っぱ・水彩植物)は bg-*.png 側の柄が主役なので、ここでは何も足さない。
+  // 1投稿目だけ葉っぱ・水彩植物。これはPNG背景側に任せる。
   if (motif === 1) return
 
   ctx.save()
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
 
-  // 7枚目(行動提案=本編完結ページ)は静かな余白を優先し、装飾を弱める。
   const calm = role === '行動提案'
-  const a = (v: number) => v * (calm ? 0.5 : 1)
-
-  const green = `rgba(142, 218, 126, ${a(0.30)})`
-  const greenSoft = `rgba(177, 239, 164, ${a(0.26)})`
-  const gold = `rgba(183, 154, 93, ${a(0.30)})`
+  const weaken = calm ? 0.62 : 1
+  const green = (alpha: number) => `rgba(142, 218, 126, ${alpha * weaken})`
+  const green2 = (alpha: number) => `rgba(182, 243, 168, ${alpha * weaken})`
+  const gold = (alpha: number) => `rgba(183, 154, 93, ${alpha * weaken})`
 
   if (motif === 2) {
-    // 2投稿目: 水彩にじみ＋やさしい曲線。葉っぱ・円は使わない。
-    drawWatercolorBlob(ctx, w * 0.08, h * 0.08, w * 0.24, h * 0.16, COLOR_LIGHT_GREEN, a(0.14), 46, 101)
-    drawWatercolorBlob(ctx, w * 0.94, h * 0.14, w * 0.22, h * 0.15, COLOR_LIGHT_GREEN_2, a(0.12), 40, 113)
-    drawWatercolorBlob(ctx, w * 0.10, h * 0.92, w * 0.24, h * 0.16, COLOR_LIGHT_GREEN_2, a(0.13), 42, 127)
-    drawWatercolorBlob(ctx, w * 0.92, h * 0.90, w * 0.22, h * 0.15, COLOR_LIGHT_GREEN, a(0.12), 40, 139)
+    // 2投稿目：水彩にじみ＋ゆるい曲線。円・フレーム・点描とは明確に違う。
+    drawWatercolorBlob(ctx, w * 0.10, h * 0.12, w * 0.34, h * 0.22, COLOR_LIGHT_GREEN, 0.18 * weaken, 54, 201)
+    drawWatercolorBlob(ctx, w * 0.92, h * 0.16, w * 0.28, h * 0.20, COLOR_LIGHT_GREEN_2, 0.16 * weaken, 50, 203)
+    drawWatercolorBlob(ctx, w * 0.10, h * 0.88, w * 0.32, h * 0.22, COLOR_LIGHT_GREEN_2, 0.17 * weaken, 48, 205)
+    drawWatercolorBlob(ctx, w * 0.92, h * 0.84, w * 0.30, h * 0.20, COLOR_LIGHT_GREEN, 0.15 * weaken, 48, 207)
 
-    ctx.strokeStyle = green
-    ctx.lineWidth = 2.4
-    ;[0.16, 0.20, 0.80, 0.84].forEach((yy) => {
+    ctx.strokeStyle = green(0.42)
+    ctx.lineWidth = 3.6
+    ;[0.15, 0.22, 0.78, 0.85].forEach((yy, idx) => {
       ctx.beginPath()
-      ctx.moveTo(w * 0.06, h * yy)
-      ctx.bezierCurveTo(w * 0.30, h * (yy + 0.05), w * 0.50, h * (yy - 0.05), w * 0.72, h * yy)
-      ctx.bezierCurveTo(w * 0.84, h * (yy + 0.03), w * 0.92, h * (yy - 0.03), w * 0.98, h * yy)
+      ctx.moveTo(w * 0.04, h * yy)
+      ctx.bezierCurveTo(w * 0.26, h * (yy + 0.055), w * 0.48, h * (yy - 0.07), w * 0.70, h * yy)
+      ctx.bezierCurveTo(w * 0.83, h * (yy + 0.045), w * 0.93, h * (yy - 0.035), w * 0.99, h * yy)
       ctx.stroke()
+      if (idx % 2 === 0) {
+        ctx.strokeStyle = gold(0.24)
+        ctx.lineWidth = 1.6
+      } else {
+        ctx.strokeStyle = green(0.42)
+        ctx.lineWidth = 3.6
+      }
     })
   }
 
   if (motif === 3) {
-    // 3投稿目: 円・丸モチーフの重なり。2投稿目(曲線)とは形状が明確に異なる。
-    ctx.strokeStyle = greenSoft
-    ctx.lineWidth = 2.6
-    ;[
-      [w * 0.14, h * 0.16, 96],
-      [w * 0.86, h * 0.20, 118],
-      [w * 0.18, h * 0.84, 128],
-      [w * 0.84, h * 0.82, 92]
-    ].forEach(([cx, cy, r]) => {
+    // 3投稿目：円・丸の重なり。2投稿目の曲線とは別物に見せる。
+    const circleSets = [
+      [w * 0.12, h * 0.18, 92],
+      [w * 0.88, h * 0.22, 126],
+      [w * 0.18, h * 0.82, 142],
+      [w * 0.84, h * 0.80, 104]
+    ]
+    circleSets.forEach(([cx, cy, baseR], idx) => {
+      ;[0, 38, 76].forEach((add, k) => {
+        ctx.beginPath()
+        ctx.strokeStyle = k === 1 ? gold(0.30) : green2(0.36 - k * 0.05)
+        ctx.lineWidth = k === 1 ? 2.2 : 2.8
+        const r = (baseR as number) + add
+        ctx.arc(cx as number, cy as number, r, 0, Math.PI * 2)
+        ctx.stroke()
+      })
+      ctx.fillStyle = idx % 2 === 0 ? green(0.26) : gold(0.24)
       ctx.beginPath()
-      ctx.arc(cx as number, cy as number, r as number, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.arc(cx as number, cy as number, (r as number) * 0.62, 0, Math.PI * 2)
-      ctx.stroke()
-    })
-    ctx.fillStyle = gold
-    ;[
-      [w * 0.20, h * 0.20],
-      [w * 0.80, h * 0.24],
-      [w * 0.22, h * 0.80],
-      [w * 0.80, h * 0.78]
-    ].forEach(([x, y]) => {
-      ctx.beginPath()
-      ctx.arc(x as number, y as number, 5, 0, Math.PI * 2)
+      ctx.arc(cx as number, cy as number, 10, 0, Math.PI * 2)
       ctx.fill()
     })
   }
 
   if (motif === 4) {
-    // 4投稿目: 細いフレーム線・ガイド線。直線基調で円/波とはっきり区別する。
-    ctx.strokeStyle = gold
-    ctx.lineWidth = 1.6
-    const insetX = w * 0.07
-    const insetY = h * 0.10
-    ctx.strokeRect(insetX, insetY, w - insetX * 2, h - insetY * 2)
+    // 4投稿目：線・フレーム・ガイド。円や波ではなく、整理された構造感。
+    const insetX = w * 0.075
+    const insetY = h * 0.105
 
-    ctx.strokeStyle = green
-    ctx.lineWidth = 1.4
-    ;[0.12, 0.88].forEach((yy) => {
+    ctx.strokeStyle = gold(0.36)
+    ctx.lineWidth = 2
+    roundedRectPath(ctx, insetX, insetY, w - insetX * 2, h - insetY * 2, 22)
+    ctx.stroke()
+
+    ctx.strokeStyle = green(0.38)
+    ctx.lineWidth = 2.2
+    ;[0.22, 0.78].forEach((yy) => {
       ctx.beginPath()
-      ctx.moveTo(w * 0.10, h * yy)
-      ctx.lineTo(w * 0.32, h * yy)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(w * 0.68, h * yy)
-      ctx.lineTo(w * 0.90, h * yy)
+      ctx.moveTo(w * 0.12, h * yy)
+      ctx.lineTo(w * 0.88, h * yy)
       ctx.stroke()
     })
-    // 角のトンボ風ガイド交点
-    ;[
-      [w * 0.07, h * 0.10],
-      [w * 0.93, h * 0.10],
-      [w * 0.07, h * 0.90],
-      [w * 0.93, h * 0.90]
-    ].forEach(([x, y]) => {
+    ;[0.20, 0.80].forEach((xx) => {
       ctx.beginPath()
-      ctx.moveTo((x as number) - 14, y as number)
-      ctx.lineTo((x as number) + 14, y as number)
-      ctx.moveTo(x as number, (y as number) - 14)
-      ctx.lineTo(x as number, (y as number) + 14)
+      ctx.moveTo(w * xx, h * 0.13)
+      ctx.lineTo(w * xx, h * 0.28)
+      ctx.moveTo(w * xx, h * 0.72)
+      ctx.lineTo(w * xx, h * 0.87)
+      ctx.stroke()
+    })
+
+    // 四隅のL字ガイド
+    const l = 78
+    const corners = [
+      [insetX + 16, insetY + 16, 1, 1],
+      [w - insetX - 16, insetY + 16, -1, 1],
+      [insetX + 16, h - insetY - 16, 1, -1],
+      [w - insetX - 16, h - insetY - 16, -1, -1]
+    ]
+    ctx.strokeStyle = green2(0.50)
+    ctx.lineWidth = 4
+    corners.forEach(([x, y, sx, sy]) => {
+      ctx.beginPath()
+      ctx.moveTo(x as number, y as number)
+      ctx.lineTo((x as number) + (l * (sx as number)), y as number)
+      ctx.moveTo(x as number, y as number)
+      ctx.lineTo(x as number, (y as number) + (l * (sy as number)))
       ctx.stroke()
     })
   }
 
   if (motif === 5) {
-    // 5投稿目: 点描・小粒ドット・淡い光。テキスト帯は避けて周辺に散らす。
-    const rng = makeRng(2026)
-    for (let i = 0; i < 46; i++) {
-      const x = rng() * w
-      const y = rng() * h
-      if (x > w * 0.16 && x < w * 0.84 && y > h * 0.22 && y < h * 0.78) continue
-      const r = 1.6 + rng() * 3.2
-      ctx.fillStyle = rng() > 0.5 ? green : gold
-      ctx.beginPath()
-      ctx.arc(x, y, r, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    drawWatercolorBlob(ctx, w * 0.12, h * 0.14, w * 0.16, h * 0.10, COLOR_LIGHT_GREEN_2, a(0.10), 50, 211)
-    drawWatercolorBlob(ctx, w * 0.90, h * 0.88, w * 0.18, h * 0.12, COLOR_LIGHT_GREEN, a(0.10), 50, 223)
-  }
+    // 5投稿目：粒子・点描・淡い光。3投稿目の円、4投稿目の線と明確に違う。
+    const clusters = [
+      [w * 0.14, h * 0.18, 34],
+      [w * 0.86, h * 0.18, 38],
+      [w * 0.18, h * 0.82, 42],
+      [w * 0.84, h * 0.80, 34]
+    ]
 
-  // 6枚目(気づき)は転換感を出すため、淡い光の粒を少し足す。
-  if (role === '気づき') {
-    ctx.fillStyle = 'rgba(183,154,93,0.35)'
+    clusters.forEach(([cx, cy, count], ci) => {
+      for (let i = 0; i < (count as number); i++) {
+        const angle = (Math.PI * 2 * i) / (count as number)
+        const rr = 18 + ((i * 37 + ci * 19) % 110)
+        const x = (cx as number) + Math.cos(angle) * rr
+        const y = (cy as number) + Math.sin(angle) * rr * 0.72
+        const r = 1.8 + ((i + ci) % 4) * 0.9
+        ctx.fillStyle = i % 3 === 0 ? gold(0.42) : green(0.38)
+        ctx.beginPath()
+        ctx.arc(x, y, r, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    })
+
+    // 淡い光のリングではなく、放射状の粒子感を薄く出す
+    ctx.strokeStyle = gold(0.20)
+    ctx.lineWidth = 1.4
     ;[
-      [w * 0.5, h * 0.10],
-      [w * 0.5, h * 0.90]
-    ].forEach(([x, y]) => {
-      ctx.beginPath()
-      ctx.arc(x as number, y as number, 3.4, 0, Math.PI * 2)
-      ctx.fill()
+      [w * 0.12, h * 0.18],
+      [w * 0.86, h * 0.82]
+    ].forEach(([cx, cy]) => {
+      for (let i = 0; i < 16; i++) {
+        const a = (Math.PI * 2 * i) / 16
+        ctx.beginPath()
+        ctx.moveTo((cx as number) + Math.cos(a) * 26, (cy as number) + Math.sin(a) * 26)
+        ctx.lineTo((cx as number) + Math.cos(a) * 108, (cy as number) + Math.sin(a) * 108)
+        ctx.stroke()
+      }
     })
   }
 
@@ -1007,7 +1027,8 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
   canvas.height = h
   const ctx = canvas.getContext('2d')!
   const bgKind: BackgroundKind = slide.role === 'TOP' ? 'top' : slide.role === 'CTA' ? 'cta' : 'middle'
-  const bgAsset = await loadBackgroundAsset(bgKind)
+  const motif = motifIndexFor(postIndex)
+  const bgAsset = motif === 1 ? await loadBackgroundAsset(bgKind) : null
 
   if (slide.role === 'TOP') {
     renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset, theme, postIndex)
