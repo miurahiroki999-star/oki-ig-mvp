@@ -442,21 +442,31 @@ function drawWatercolorBlob(
 }
 
 function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bgAsset?: CanvasImageSource | null, kind: BackgroundKind = 'middle', postIndex?: number) {
-  // 葉っぱ・水彩植物の bg-*.png は「1投稿目」のブランド感専用。2〜5投稿目では使わない。
-  const isFirstPost = !postIndex || postIndex === 1
-  if (bgAsset && isFirstPost) {
+  const motif = motifIndexFor(postIndex)
+
+  // v23 critical fix:
+  // v22では「bgAsset && isFirstPost」の条件により、2・3・5投稿目の承認済み固定背景を
+  // 読み込んでいても描画していなかった。ここでは固定背景を必ず描画する。
+  if (bgAsset) {
     ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, w, h)
 
-    const bgAlpha = kind === 'middle' ? 0.92 : kind === 'cta' ? 0.94 : 0.94
+    const isApprovedFixedBg = motif === 2 || motif === 3 || motif === 5
+    const bgAlpha = isApprovedFixedBg ? 1 : kind === 'middle' ? 0.92 : kind === 'cta' ? 0.94 : 0.94
     ctx.save()
     ctx.globalAlpha = bgAlpha
     ctx.drawImage(bgAsset, 0, 0, w, h)
     ctx.restore()
 
+    // 承認済み背景は中央白場があるので、過度に白を重ねて消さない。
     const center = ctx.createRadialGradient(w / 2, h * 0.48, 1, w / 2, h * 0.48, w * 0.58)
-    center.addColorStop(0, 'rgba(255,255,255,0.45)')
-    center.addColorStop(0.58, 'rgba(255,255,255,0.24)')
+    if (isApprovedFixedBg) {
+      center.addColorStop(0, 'rgba(255,255,255,0.10)')
+      center.addColorStop(0.58, 'rgba(255,255,255,0.04)')
+    } else {
+      center.addColorStop(0, 'rgba(255,255,255,0.45)')
+      center.addColorStop(0.58, 'rgba(255,255,255,0.24)')
+    }
     center.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.fillStyle = center
     ctx.fillRect(0, 0, w, h)

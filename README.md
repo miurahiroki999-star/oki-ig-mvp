@@ -193,3 +193,11 @@ v20で3・5投稿目の固定PNGが実打ち出し時に読み込まれず、fal
 - 2/3/5は外部画像パスに依存しない。
 - 2/3/5の画像読み込みが万一失敗した場合も、Canvas直描きfallbackで背景差分を出す。
 - Slide自体にも backgroundPostIndex を保持し、renderAllSlidesへのpostIndex渡し漏れにも対応。
+
+
+## v23 critical fix
+
+v22では、2・3・5投稿目の承認済み背景をdataURLで読み込んでいたが、fillBackground側の条件が `bgAsset && isFirstPost` になっていたため、1投稿目以外の背景が描画されていなかった。
+
+v23では `bgAsset` があれば投稿番号に関係なく必ず描画するよう修正。
+2・3・5投稿目の承認済み固定背景は `bgAlpha=1` で表示し、中央白かぶせも最小限にした。
