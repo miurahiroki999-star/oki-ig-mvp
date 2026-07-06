@@ -51,6 +51,15 @@ const BACKGROUND_ASSETS: Record<BackgroundKind, string> = {
   cta: '/assets/design/bg-cta.png'
 }
 
+// v20 final:
+// 1投稿目・2投稿目は既存の葉っぱ系背景。
+// 3投稿目・5投稿目は、ひろきさん確認済みの固定PNG背景を使用。
+// 4投稿目は背景PNGを使わず、丸モチーフをCanvasで描画。
+const POST_FIXED_BACKGROUND_ASSETS: Partial<Record<number, string>> = {
+  3: '/assets/design/bg-post-3-approved.png',
+  5: '/assets/design/bg-post-5-approved.png'
+}
+
 const backgroundCache = new Map<string, Promise<HTMLImageElement | null>>()
 
 function loadImageAsset(src: string): Promise<HTMLImageElement | null> {
@@ -63,9 +72,10 @@ function loadImageAsset(src: string): Promise<HTMLImageElement | null> {
   })
 }
 
-function loadBackgroundAsset(kind: BackgroundKind): Promise<HTMLImageElement | null> {
-  const src = BACKGROUND_ASSETS[kind]
-  const key = `${kind}:${src}`
+function loadBackgroundAsset(kind: BackgroundKind, postIndex?: number): Promise<HTMLImageElement | null> {
+  const motif = motifIndexFor(postIndex)
+  const src = POST_FIXED_BACKGROUND_ASSETS[motif] || BACKGROUND_ASSETS[kind]
+  const key = `${kind}:${motif}:${src}`
   const cached = backgroundCache.get(key)
   if (cached) return cached
   const promise = loadImageAsset(src)
@@ -113,12 +123,12 @@ function drawThemeLabel(ctx: CanvasRenderingContext2D, w: number, theme?: Theme)
 // テーマの並び替え(ユーザーがテーマを指定した場合の companionThemes 並び替え)に関わらず
 // 投稿番号ごとの背景固定ルールを確実に満たす。
 //
-// v19 固定ルール（投稿番号ベース／テーマに関係なく共通）：
+// v20 最終固定ルール（投稿番号ベース／テーマに関係なく共通）：
 //   1 ＝ 葉っぱA　　　（ブランド入口。bg-top/middle/cta.png ＋ drawCornerDecor）
-//   2 ＝ 葉っぱA’　　（1投稿目と同系統。控えめ・配置違いの葉クラスター）
-//   3 ＝ 葉っぱB　　　（1・2投稿目と明らかに違う枝もの・丸みのある葉）
+//   2 ＝ 葉っぱA’　　（1投稿目と同じ既存水彩葉っぱ背景）
+//   3 ＝ 葉っぱB　　　（承認済み固定PNG背景）
 //   4 ＝ 丸モチーフ　（円・丸の重なり）
-//   5 ＝ 葉っぱC　　　（3投稿目とも1・2投稿目とも違う、華やか・粒感のある葉）
+//   5 ＝ 葉っぱC　　　（承認済み固定PNG背景）
 function motifIndexFor(postIndex?: number): number {
   const p = postIndex && postIndex > 0 ? Math.floor(postIndex) : 1
   return ((p - 1) % 5) + 1
@@ -127,8 +137,10 @@ function motifIndexFor(postIndex?: number): number {
 function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number, postIndex?: number, role?: SlideRole) {
   const motif = motifIndexFor(postIndex)
 
-  // 1投稿目だけ葉っぱ・水彩植物。これはPNG背景側に任せる。
-  if (motif === 1) return
+  // v20 final:
+  // 1・2・3・5投稿目は固定PNG背景だけを使う。
+  // ここで追加装飾を乗せると、承認済み背景が崩れるため描画しない。
+  if (motif !== 4) return
 
   ctx.save()
   ctx.lineCap = 'round'
@@ -140,60 +152,32 @@ function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number
   const green2 = (alpha: number) => `rgba(182, 243, 168, ${alpha * weaken})`
   const gold = (alpha: number) => `rgba(183, 154, 93, ${alpha * weaken})`
 
-  if (motif === 2) {
-    // 2投稿目＝葉っぱA’：1投稿目と同系統の葉クラスターだが、
-    // 配置を左上・右下の2隅だけに絞り、枚数とアルファを落として「控えめな続き」に見せる。
-    drawLeafCluster(ctx, -14, 30, 1.05, 22, false, { alphaMult: 0.72 * weaken, leafCount: 4 })
-    drawLeafCluster(ctx, w + 20, h - 240, 0.92, 198, true, { alphaMult: 0.68 * weaken, leafCount: 4 })
-
-    // うっすら金の弧を1本だけ添えて「1投稿目の続き」感を補強する。
-    ctx.strokeStyle = gold(0.20)
-    ctx.lineWidth = 1.4
-    ctx.beginPath()
-    ctx.moveTo(w * 0.30, h * 0.05)
-    ctx.bezierCurveTo(w * 0.55, h * 0.12, w * 0.70, h * 0.02, w * 0.95, h * 0.09)
-    ctx.stroke()
-  }
-
-  if (motif === 3) {
-    // 3投稿目＝葉っぱB：放射状クラスター(A/A’)とは配置そのものが違う「枝もの」。
-    // 丸みのある葉を使い、1本の枝が対角に伸びるシルエットで一目で別柄だと分かる。
-    drawBranchCluster(ctx, -10, h * 0.14, 1.15, 18, false, weaken)
-    drawBranchCluster(ctx, w + 14, h * 0.90, 1.0, 198, true, weaken)
-  }
-
-  if (motif === 4) {
-    // 4投稿目＝丸モチーフ：円・丸の重なり。葉っぱ系(2・3・5)とは明確に違う幾何モチーフ。
-    const circleSets = [
-      [w * 0.12, h * 0.18, 92],
-      [w * 0.88, h * 0.22, 126],
-      [w * 0.18, h * 0.82, 142],
-      [w * 0.84, h * 0.80, 104]
-    ]
-    circleSets.forEach(([cx, cy, baseR], idx) => {
-      ;[0, 38, 76].forEach((add, k) => {
-        ctx.beginPath()
-        ctx.strokeStyle = k === 1 ? gold(0.30) : green2(0.36 - k * 0.05)
-        ctx.lineWidth = k === 1 ? 2.2 : 2.8
-        const r = (baseR as number) + add
-        ctx.arc(cx as number, cy as number, r, 0, Math.PI * 2)
-        ctx.stroke()
-      })
-      ctx.fillStyle = idx % 2 === 0 ? green(0.26) : gold(0.24)
+  // 4投稿目＝丸モチーフ：円・丸の重なり。
+  // これはv19でOKだった方向を維持する。
+  const circleSets = [
+    [w * 0.12, h * 0.18, 92],
+    [w * 0.88, h * 0.22, 126],
+    [w * 0.18, h * 0.82, 142],
+    [w * 0.84, h * 0.80, 104]
+  ]
+  circleSets.forEach(([cx, cy, baseR], idx) => {
+    ;[0, 38, 76].forEach((add, k) => {
       ctx.beginPath()
-      ctx.arc(cx as number, cy as number, 10, 0, Math.PI * 2)
-      ctx.fill()
+      ctx.strokeStyle = k === 1 ? gold(0.30) : green2(0.36 - k * 0.05)
+      ctx.lineWidth = k === 1 ? 2.2 : 2.8
+      const r = (baseR as number) + add
+      ctx.arc(cx as number, cy as number, r, 0, Math.PI * 2)
+      ctx.stroke()
     })
-  }
+    ctx.fillStyle = idx % 2 === 0 ? green(0.26) : gold(0.24)
+    ctx.beginPath()
+    ctx.arc(cx as number, cy as number, 10, 0, Math.PI * 2)
+    ctx.fill()
+  })
 
-  if (motif === 5) {
-    // 5投稿目＝葉っぱC：3投稿目(枝もの)とも1・2投稿目(放射状クラスター)とも違う、
-    // 上下に配置した小さめの葉＋きらめきの粒で「3種類目の植物系」として独立させる。
-    drawSparkleLeafCluster(ctx, 6, 10, 1.0, 8, false, weaken)
-    drawSparkleLeafCluster(ctx, w - 10, 20, 0.86, 176, true, weaken)
-    drawSparkleLeafCluster(ctx, 10, h - 40, 0.9, -20, false, weaken)
-    drawSparkleLeafCluster(ctx, w - 6, h - 30, 1.05, 200, true, weaken)
-  }
+  // 中央に影響しない範囲で、薄い水彩にじみだけ足す。
+  drawWatercolorBlob(ctx, w * 0.08, h * 0.10, w * 0.18, h * 0.12, COLOR_LIGHT_GREEN, 0.08 * weaken, 42, 411)
+  drawWatercolorBlob(ctx, w * 0.92, h * 0.88, w * 0.18, h * 0.12, COLOR_LIGHT_GREEN_2, 0.08 * weaken, 42, 413)
 
   ctx.restore()
 }
@@ -1104,7 +1088,7 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
   const ctx = canvas.getContext('2d')!
   const bgKind: BackgroundKind = slide.role === 'TOP' ? 'top' : slide.role === 'CTA' ? 'cta' : 'middle'
   const motif = motifIndexFor(postIndex)
-  const bgAsset = motif === 1 ? await loadBackgroundAsset(bgKind) : null
+  const bgAsset = motif === 4 ? null : await loadBackgroundAsset(bgKind, postIndex)
 
   if (slide.role === 'TOP') {
     renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset, theme, postIndex)
