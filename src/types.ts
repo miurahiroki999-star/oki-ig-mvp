@@ -75,6 +75,7 @@ export interface Slide {
   mainText?: string // 中ページの本文(改行込み)
   highlights?: string[] // mainText内で淡いグリーンハイライトする語
   bullets?: string[] // 下部の補足箇条書き
+  themeLabel?: string // 画像上部に出す英字＋日本語テーマラベル
   imageDataUrl?: string
 }
 

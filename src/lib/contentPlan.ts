@@ -11,7 +11,7 @@
 // 重複回避は「履歴内の直近使用TOP見出し/投稿欄冒頭」を避けることで実現する。
 
 import { ALL_THEMES, AppSettings, CarouselPost, HistoryEntry, Slide, Theme } from '../types'
-import { captionClosingLines, ctaHeadlines, getPostBank, PostVariant } from './contentBank'
+import { captionClosingLines, getPostBank, PostVariant } from './contentBank'
 import { tryGenerateWithOpenAI } from './openai'
 
 function shuffle<T>(arr: T[], seed: number): T[] {
@@ -94,6 +94,115 @@ function publishTimeForPost(postIndex: number): string {
 }
 
 
+const themeCtaCopy: Record<Theme, { headline: string; subheadline: string }[]> = {
+  健康: [
+    { headline: '体だけでなく\n整えどころを\n見てみたい方へ', subheadline: 'ここまで読んだ上で、もう少し客観的に' },
+    { headline: '今の不調を\n別の角度から\n見てみたい方へ', subheadline: '今日の内容を自分に置き換えるなら' }
+  ],
+  人間関係: [
+    { headline: '人との関わりを\n一度整理したい方へ', subheadline: 'ここまで読んで、思い当たることがあれば' },
+    { headline: '無理のない距離感を\n見つけたい方へ', subheadline: '自分の状態をもう少し丁寧に見るなら' }
+  ],
+  お金: [
+    { headline: 'お金と現実の流れを\n整えたい方へ', subheadline: '焦る前に、今の整えどころを知る' },
+    { headline: '不安の奥にある\n整えどころを\n見てみたい方へ', subheadline: '今日の内容を自分の現実に当てはめるなら' }
+  ],
+  ご縁: [
+    { headline: 'ご縁の流れを\n整えたい方へ', subheadline: 'つながり方を一度見直したいなら' },
+    { headline: '自然な出会い方を\n見つけたい方へ', subheadline: '今の自分の状態から整える' }
+  ],
+  使命: [
+    { headline: '才能や使命のヒントを\n知りたい方へ', subheadline: '答えを急がず、今の状態を見てみる' },
+    { headline: '自分の役割を\nもう少し知りたい方へ', subheadline: '今日の違和感を次の一歩に変えるなら' }
+  ],
+  瞑想: [
+    { headline: '心の状態を\n静かに整えたい方へ', subheadline: 'ここまで読んで、少し立ち止まりたいなら' },
+    { headline: '内側の声を\n見つめ直したい方へ', subheadline: '日々のざわつきを整える入口として' }
+  ],
+  無料診断: [
+    { headline: '今の整えどころを\n客観的に\n見たい方へ', subheadline: '今日の内容を自分に当てはめるなら' },
+    { headline: '何から整えるかを\n知りたい方へ', subheadline: 'まずは今の状態を確認するところから' }
+  ]
+}
+
+function getThemeCta(theme: Theme, seed: number): { headline: string; subheadline: string } {
+  const list = themeCtaCopy[theme] || themeCtaCopy.無料診断
+  return list[seed % list.length]
+}
+
+function containsCtaCue(text: string): boolean {
+  return /公式LINE|プロフィール|リンク|無料診断|人生の質向上チェック|登録|こちら/.test(text || '')
+}
+
+function completionActionSlide(theme: Theme): Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'> {
+  const map: Record<Theme, Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>> = {
+    健康: {
+      label: '今日の結論',
+      mainText: '体の不調だけで\n判断せず、\n心や日々の選択も含めて\n見直してみてください。',
+      highlights: ['見直して'],
+      bullets: []
+    },
+    人間関係: {
+      label: '今日の結論',
+      mainText: '誰かを変える前に、\n自分がどこで無理をしているかを\n静かに見てみてください。',
+      highlights: ['無理'],
+      bullets: []
+    },
+    お金: {
+      label: '今日の結論',
+      mainText: '不安を消そうとする前に、\n今の現実の中で\n整えられる場所を\n見つけてみてください。',
+      highlights: ['整えられる場所'],
+      bullets: []
+    },
+    ご縁: {
+      label: '今日の結論',
+      mainText: 'ご縁は追いかけるより、\n自分の状態を整えた時に\n自然とつながりやすくなります。',
+      highlights: ['自分の状態'],
+      bullets: []
+    },
+    使命: {
+      label: '今日の結論',
+      mainText: '答えを急がなくても\n大丈夫です。\n違和感や惹かれる方向を\n丁寧に見てみてください。',
+      highlights: ['惹かれる方向'],
+      bullets: []
+    },
+    瞑想: {
+      label: '今日の結論',
+      mainText: '心を無理に静めようとせず、\n今の状態に気づくことから\n始めてみてください。',
+      highlights: ['気づくこと'],
+      bullets: []
+    },
+    無料診断: {
+      label: '今日の結論',
+      mainText: 'まずは自分を責めずに、\n今どこを整えると\n軽くなるのかを\n見てみてください。',
+      highlights: ['どこを整える'],
+      bullets: []
+    }
+  }
+  return map[theme]
+}
+
+function sanitizeSlidesForSeparateCta(
+  slides: Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[],
+  theme: Theme
+): Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[] {
+  return slides.map((s, idx) => {
+    const mainText = s.mainText || ''
+    const bulletText = (s.bullets || []).join('\n')
+    const mainAlreadyHasBullets = /(^|\n)\s*[・✔●①②③④⑤⑥⑦⑧⑨]|(^|\n)\s*\d+[\.．]/.test(mainText)
+
+    if (idx === 5 && containsCtaCue(`${mainText}\n${bulletText}`)) {
+      return completionActionSlide(theme)
+    }
+
+    return {
+      ...s,
+      bullets: mainAlreadyHasBullets ? [] : (s.bullets || []).slice(0, 3)
+    }
+  })
+}
+
+
 function isUsed(history: HistoryEntry[], field: 'topHeadline' | 'captionLead', value: string, windowSize = 60): boolean {
   const recent = history.slice(-windowSize)
   return recent.some((h) => h[field] === value)
@@ -173,7 +282,7 @@ function localCore(theme: Theme, history: HistoryEntry[], seed: number, settings
     postTitle: variant.topHeadline.replace(/\n/g, ''),
     topSub: variant.topSub,
     topHeadline: variant.topHeadline,
-    slides6: variantToSlides6(variant),
+    slides6: sanitizeSlidesForSeparateCta(variantToSlides6(variant), theme),
     captionLead: variant.captionLead,
     hashtags: sanitizeHashtags(null, settings),
     source: 'local'
@@ -210,7 +319,7 @@ async function generateCore(theme: Theme, history: HistoryEntry[], settings: App
       postTitle: ai.postTitle.trim() || ai.topHeadline.replace(/\n/g, ''),
       topSub: ai.topSub.trim() || '心と現実が整い始めるヒント',
       topHeadline: ai.topHeadline.trim(),
-      slides6: ai.slides6,
+      slides6: sanitizeSlidesForSeparateCta(ai.slides6, theme),
       captionLead: ai.captionLead.trim(),
       hashtags: sanitizeHashtags(ai.hashtags, settings),
       source: 'ai'
@@ -301,12 +410,12 @@ function buildCaption(captionLead: string, settings: AppSettings, hashtags: stri
   return parts.join('\n')
 }
 
-function buildSlides(core: CoreResult, seed: number): Slide[] {
-  const cta = ctaHeadlines[seed % ctaHeadlines.length]
+function buildSlides(core: CoreResult, seed: number, theme: Theme): Slide[] {
+  const cta = getThemeCta(theme, seed)
   const roles: { label: string }[] = []
   const slides: Slide[] = []
 
-  slides.push({ index: 1, role: 'TOP', headline: core.topHeadline, subheadline: core.topSub })
+  slides.push({ index: 1, role: 'TOP', headline: core.topHeadline, subheadline: core.topSub, themeLabel: theme })
 
   const middleRoles: Slide['role'][] = ['問題提起', '相談', '見立て', '具体例', '気づき', '行動提案']
   core.slides6.forEach((s, i) => {
@@ -316,11 +425,12 @@ function buildSlides(core: CoreResult, seed: number): Slide[] {
       label: middleRoles[i],
       mainText: s.mainText,
       highlights: s.highlights,
-      bullets: s.bullets
+      bullets: s.bullets,
+      themeLabel: theme
     })
   })
 
-  slides.push({ index: 8, role: 'CTA', headline: cta.headline, subheadline: cta.subheadline })
+  slides.push({ index: 8, role: 'CTA', headline: cta.headline, subheadline: cta.subheadline, themeLabel: theme })
   return slides
 }
 
@@ -352,7 +462,7 @@ export async function buildDayPosts(
     const theme = themes[i]
     const seed = seedBase + i + 1
     const core = await generateCore(theme, workingHistory, settings, seed, memo)
-    const slides = buildSlides(core, seed)
+    const slides = buildSlides(core, seed, theme)
     const hashtags = core.hashtags
     const caption = buildCaption(core.captionLead, settings, hashtags, seed, theme)
 
@@ -398,7 +508,7 @@ export async function regenerateSinglePost(
   memo?: string
 ): Promise<{ postTitle: string; slides: Slide[]; caption: string; captionLead: string; hashtags: string[]; source: 'ai' | 'local' }> {
   const core = await generateCore(theme, history, settings, seed, memo)
-  const slides = buildSlides(core, seed)
+  const slides = buildSlides(core, seed, theme)
   const hashtags = core.hashtags
   const caption = buildCaption(core.captionLead, settings, hashtags, seed, theme)
   return { postTitle: core.postTitle, slides, caption, captionLead: core.captionLead, hashtags, source: core.source }

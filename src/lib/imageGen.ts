@@ -5,7 +5,7 @@
 //   - 中ページは「見立て」参考のように、濃い明朝本文＋淡いグリーンの語句ハイライト＋下部ピル型署名
 //   - 背景は白を主役にし、ライトグリーンは装飾とアクセントに限定
 
-import { Slide } from '../types'
+import { Slide, Theme } from '../types'
 
 export const SLIDE_SIZE = { w: 1080, h: 1350 } // Instagram 4:5
 
@@ -34,13 +34,24 @@ const COLOR_BADGE_FRAME = '#D7EFD2'
 
 
 type BackgroundKind = 'top' | 'middle' | 'cta'
+
+const THEME_LABELS: Record<Theme, { en: string; ja: string; bg: string }> = {
+  健康: { en: 'HEALTH', ja: '健康', bg: '/assets/design/bg-theme-health.png' },
+  人間関係: { en: 'RELATIONSHIP', ja: '人間関係', bg: '/assets/design/bg-theme-relationship.png' },
+  お金: { en: 'MONEY', ja: 'お金', bg: '/assets/design/bg-theme-money.png' },
+  ご縁: { en: 'CONNECTION', ja: 'ご縁', bg: '/assets/design/bg-theme-connection.png' },
+  使命: { en: 'MISSION', ja: '使命', bg: '/assets/design/bg-theme-mission.png' },
+  瞑想: { en: 'MEDITATION', ja: '瞑想', bg: '/assets/design/bg-theme-meditation.png' },
+  無料診断: { en: 'CHECK', ja: '無料診断', bg: '/assets/design/bg-theme-check.png' }
+}
+
 const BACKGROUND_ASSETS: Record<BackgroundKind, string> = {
   top: '/assets/design/bg-top.png',
   middle: '/assets/design/bg-middle.png',
   cta: '/assets/design/bg-cta.png'
 }
 
-const backgroundCache = new Map<BackgroundKind, Promise<HTMLImageElement | null>>()
+const backgroundCache = new Map<string, Promise<HTMLImageElement | null>>()
 
 function loadImageAsset(src: string): Promise<HTMLImageElement | null> {
   if (typeof window === 'undefined') return Promise.resolve(null)
@@ -52,12 +63,49 @@ function loadImageAsset(src: string): Promise<HTMLImageElement | null> {
   })
 }
 
-function loadBackgroundAsset(kind: BackgroundKind): Promise<HTMLImageElement | null> {
-  const cached = backgroundCache.get(kind)
+function loadBackgroundAsset(kind: BackgroundKind, theme?: Theme): Promise<HTMLImageElement | null> {
+  const themeAsset = theme ? THEME_LABELS[theme]?.bg : undefined
+  const src = themeAsset || BACKGROUND_ASSETS[kind]
+  const key = `${kind}:${theme || 'default'}:${src}`
+  const cached = backgroundCache.get(key)
   if (cached) return cached
-  const promise = loadImageAsset(BACKGROUND_ASSETS[kind])
-  backgroundCache.set(kind, promise)
+  const promise = loadImageAsset(src)
+  backgroundCache.set(key, promise)
   return promise
+}
+
+function drawThemeLabel(ctx: CanvasRenderingContext2D, w: number, theme?: Theme) {
+  if (!theme) return
+  const info = THEME_LABELS[theme]
+  if (!info) return
+  const text = `${info.en}｜${info.ja}`
+
+  ctx.save()
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = `500 27px ${SERIF_FONT}`
+  const tw = ctx.measureText(text).width
+  const pillW = Math.max(210, tw + 58)
+  const pillH = 48
+  const x = w / 2 - pillW / 2
+  const y = 58
+
+  ctx.shadowColor = 'rgba(84,125,80,0.08)'
+  ctx.shadowBlur = 8
+  ctx.fillStyle = 'rgba(255,255,255,0.76)'
+  roundedRectPath(ctx, x, y, pillW, pillH, pillH / 2)
+  ctx.fill()
+
+  ctx.shadowBlur = 0
+  ctx.strokeStyle = 'rgba(134,201,124,0.45)'
+  ctx.lineWidth = 1.2
+  roundedRectPath(ctx, x, y, pillW, pillH, pillH / 2)
+  ctx.stroke()
+
+  ctx.fillStyle = COLOR_TEXT_MAIN
+  ctx.globalAlpha = 0.88
+  ctx.fillText(text, w / 2, y + pillH / 2 + 1)
+  ctx.restore()
 }
 
 const FONT_LOAD_SPECS = [
@@ -519,12 +567,13 @@ function getHeadlineLines(ctx: CanvasRenderingContext2D, headline: string, maxWi
 }
 
 // ---------- TOP / CTA ----------
-function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, footerRight: string, bgAsset?: CanvasImageSource | null) {
+function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, footerRight: string, bgAsset?: CanvasImageSource | null, theme?: Theme) {
   fillBackground(ctx, w, h, bgAsset, 'top')
   if (!bgAsset) {
     drawFrame(ctx, w, h)
     drawCornerDecor(ctx, w, h)
   }
+  drawThemeLabel(ctx, w, theme)
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -579,12 +628,13 @@ function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: numb
   }
 }
 
-function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, displayName: string, title: string, bgAsset?: CanvasImageSource | null) {
+function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, subheadline: string, headline: string, displayName: string, title: string, bgAsset?: CanvasImageSource | null, theme?: Theme) {
   fillBackground(ctx, w, h, bgAsset, 'cta')
   if (!bgAsset) {
     drawFrame(ctx, w, h)
     drawCornerDecor(ctx, w, h)
   }
+  drawThemeLabel(ctx, w, theme)
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -623,7 +673,8 @@ function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, sub
   ctx.font = `400 31px ${SERIF_FONT}`
   ctx.fillStyle = COLOR_TEXT_MAIN
   ctx.textAlign = 'center'
-  ctx.fillText('プロフィールのリンクから', w / 2, h - 170)
+  ctx.fillText('人生の質向上チェックは', w / 2, h - 190)
+  ctx.fillText('プロフィールのリンクから', w / 2, h - 150)
 }
 
 // ---------- 中ページ ----------
@@ -638,13 +689,15 @@ function renderPointStyleSlide(
   displayName: string,
   title: string,
   pageLabel: string,
-  bgAsset?: CanvasImageSource | null
+  bgAsset?: CanvasImageSource | null,
+  theme?: Theme
 ) {
   fillBackground(ctx, w, h, bgAsset, 'middle')
   if (!bgAsset) {
     drawFrame(ctx, w, h)
     drawCornerDecor(ctx, w, h)
   }
+  drawThemeLabel(ctx, w, theme)
 
   // 上部ラベル：明朝体で統一。色はライトグリーンのアクセントのみ。
   const labelY = h * 0.18
@@ -743,7 +796,7 @@ function renderPointStyleSlide(
   pageNumberFooter(ctx, w, h, pageLabel)
 }
 
-export async function renderSlideImage(slide: Slide, totalSlides: number, displayName: string, title: string): Promise<string> {
+export async function renderSlideImage(slide: Slide, totalSlides: number, displayName: string, title: string, theme?: Theme): Promise<string> {
   await ensureFontsLoaded()
 
   const { w, h } = SLIDE_SIZE
@@ -752,12 +805,12 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
   canvas.height = h
   const ctx = canvas.getContext('2d')!
   const bgKind: BackgroundKind = slide.role === 'TOP' ? 'top' : slide.role === 'CTA' ? 'cta' : 'middle'
-  const bgAsset = await loadBackgroundAsset(bgKind)
+  const bgAsset = await loadBackgroundAsset(bgKind, theme)
 
   if (slide.role === 'TOP') {
-    renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset)
+    renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset, theme)
   } else if (slide.role === 'CTA') {
-    renderCtaSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', displayName, title, bgAsset)
+    renderCtaSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', displayName, title, bgAsset, theme)
   } else {
     renderPointStyleSlide(
       ctx,
@@ -770,7 +823,8 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
       displayName,
       title,
       String(slide.index).padStart(2, '0'),
-      bgAsset
+      bgAsset,
+      theme
     )
   }
   void totalSlides
@@ -778,10 +832,10 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
   return canvas.toDataURL('image/png')
 }
 
-export async function renderAllSlides(slides: Slide[], displayName: string, title: string): Promise<Slide[]> {
+export async function renderAllSlides(slides: Slide[], displayName: string, title: string, theme?: Theme): Promise<Slide[]> {
   const rendered: Slide[] = []
   for (const s of slides) {
-    const imageDataUrl = await renderSlideImage(s, slides.length, displayName, title)
+    const imageDataUrl = await renderSlideImage(s, slides.length, displayName, title, theme)
     rendered.push({ ...s, imageDataUrl })
   }
   return rendered

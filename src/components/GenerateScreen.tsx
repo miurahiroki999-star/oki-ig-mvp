@@ -78,7 +78,7 @@ export default function GenerateScreen() {
         for (const p of planned) {
           setProgress(`${d} / ${days} 日目 ・ ${p.postIndex} / ${postsPerDay} 投稿目のカルーセル画像を生成中...`)
           await new Promise((r) => requestAnimationFrame(r))
-          const slidesWithImages = await renderAllSlides(p.slides, settings.displayName, settings.title)
+          const slidesWithImages = await renderAllSlides(p.slides, settings.displayName, settings.title, p.theme)
           const full = toCarouselPost(
             { ...p, slides: slidesWithImages },
             {
@@ -124,7 +124,7 @@ export default function GenerateScreen() {
       const history = getHistory()
       const seed = Date.now() % 100000
       const result = await regenerateSinglePost(post.theme, history, settings, seed, memo)
-      const slidesWithImages = await renderAllSlides(result.slides, settings.displayName, settings.title)
+      const slidesWithImages = await renderAllSlides(result.slides, settings.displayName, settings.title, post.theme)
 
       const updated: CarouselPost = {
         ...post,
