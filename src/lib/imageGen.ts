@@ -470,6 +470,26 @@ function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bgA
     center.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.fillStyle = center
     ctx.fillRect(0, 0, w, h)
+
+    // v24:
+    // 5投稿目は承認済み背景の枝葉が本文領域へ強く入り、文字と被っていた。
+    // 背景自体は活かしつつ、中央の本文安全領域だけ白のベールで保護する。
+    if (motif === 5) {
+      const veil = ctx.createRadialGradient(w / 2, h * 0.50, 1, w / 2, h * 0.50, w * 0.58)
+      veil.addColorStop(0, 'rgba(255,255,255,0.94)')
+      veil.addColorStop(0.42, 'rgba(255,255,255,0.86)')
+      veil.addColorStop(0.68, 'rgba(255,255,255,0.52)')
+      veil.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = veil
+      ctx.fillRect(0, 0, w, h)
+
+      ctx.save()
+      ctx.fillStyle = 'rgba(255,255,255,0.58)'
+      roundedRectPath(ctx, w * 0.105, h * 0.215, w * 0.79, h * 0.62, 58)
+      ctx.fill()
+      ctx.restore()
+    }
+
     return
   }
   ctx.fillStyle = COLOR_BG
