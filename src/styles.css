@@ -34,9 +34,10 @@ body {
 }
 
 .app-title {
-  font-family: 'Kaisei Decol', serif;
-  font-size: 26px;
-  letter-spacing: 0.02em;
+  font-family: "Noto Serif JP", "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", serif;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
 }
 .app-title small {
   display: block;
@@ -76,8 +77,10 @@ body {
 }
 
 .section-title {
-  font-family: 'Kaisei Decol', serif;
-  font-size: 20px;
+  font-family: "Noto Serif JP", "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
   margin: 0 0 12px;
 }
 
@@ -131,7 +134,7 @@ body {
 
 .day-block { margin-bottom: 28px; }
 .day-heading {
-  font-family: 'Kaisei Decol', serif;
+  font-family: "Noto Serif JP", "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", serif;
   font-size: 18px;
   margin: 24px 0 12px;
   padding-bottom: 6px;

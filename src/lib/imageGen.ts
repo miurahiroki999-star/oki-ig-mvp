@@ -35,14 +35,14 @@ const COLOR_BADGE_FRAME = '#D7EFD2'
 
 type BackgroundKind = 'top' | 'middle' | 'cta'
 
-const THEME_LABELS: Record<Theme, { en: string; ja: string; bg: string }> = {
-  健康: { en: 'HEALTH', ja: '健康', bg: '/assets/design/bg-theme-health.png' },
-  人間関係: { en: 'RELATIONSHIP', ja: '人間関係', bg: '/assets/design/bg-theme-relationship.png' },
-  お金: { en: 'MONEY', ja: 'お金', bg: '/assets/design/bg-theme-money.png' },
-  ご縁: { en: 'CONNECTION', ja: 'ご縁', bg: '/assets/design/bg-theme-connection.png' },
-  使命: { en: 'MISSION', ja: '使命', bg: '/assets/design/bg-theme-mission.png' },
-  瞑想: { en: 'MEDITATION', ja: '瞑想', bg: '/assets/design/bg-theme-meditation.png' },
-  無料診断: { en: 'CHECK', ja: '無料診断', bg: '/assets/design/bg-theme-check.png' }
+const THEME_LABELS: Record<Theme, { en: string; ja: string }> = {
+  健康: { en: 'HEALTH', ja: '健康' },
+  人間関係: { en: 'RELATIONSHIP', ja: '人間関係' },
+  お金: { en: 'MONEY', ja: 'お金' },
+  ご縁: { en: 'CONNECTION', ja: 'ご縁' },
+  使命: { en: 'MISSION', ja: '使命' },
+  瞑想: { en: 'MEDITATION', ja: '瞑想' },
+  無料診断: { en: 'CHECK', ja: '無料診断' }
 }
 
 const BACKGROUND_ASSETS: Record<BackgroundKind, string> = {
@@ -63,10 +63,9 @@ function loadImageAsset(src: string): Promise<HTMLImageElement | null> {
   })
 }
 
-function loadBackgroundAsset(kind: BackgroundKind, theme?: Theme): Promise<HTMLImageElement | null> {
-  const themeAsset = theme ? THEME_LABELS[theme]?.bg : undefined
-  const src = themeAsset || BACKGROUND_ASSETS[kind]
-  const key = `${kind}:${theme || 'default'}:${src}`
+function loadBackgroundAsset(kind: BackgroundKind): Promise<HTMLImageElement | null> {
+  const src = BACKGROUND_ASSETS[kind]
+  const key = `${kind}:${src}`
   const cached = backgroundCache.get(key)
   if (cached) return cached
   const promise = loadImageAsset(src)
@@ -107,6 +106,197 @@ function drawThemeLabel(ctx: CanvasRenderingContext2D, w: number, theme?: Theme)
   ctx.fillText(text, w / 2, y + pillH / 2 + 1)
   ctx.restore()
 }
+
+
+function drawThemeAtmosphere(ctx: CanvasRenderingContext2D, w: number, h: number, theme?: Theme) {
+  if (!theme) return
+
+  ctx.save()
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+
+  const green = 'rgba(142, 218, 126, 0.24)'
+  const greenSoft = 'rgba(177, 239, 164, 0.20)'
+  const gold = 'rgba(183, 154, 93, 0.22)'
+
+  if (theme === '健康') {
+    // 既存の水彩植物背景を活かす。追加柄は最小限。
+    ctx.strokeStyle = green
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(w * 0.08, h * 0.15)
+    ctx.bezierCurveTo(w * 0.18, h * 0.10, w * 0.22, h * 0.20, w * 0.30, h * 0.13)
+    ctx.stroke()
+  }
+
+  if (theme === '人間関係') {
+    ctx.strokeStyle = greenSoft
+    ctx.lineWidth = 2.4
+    ;[
+      [w * 0.12, h * 0.18, 74],
+      [w * 0.88, h * 0.22, 92],
+      [w * 0.16, h * 0.82, 108],
+      [w * 0.86, h * 0.80, 70]
+    ].forEach(([cx, cy, r]) => {
+      ctx.beginPath()
+      ctx.arc(cx as number, cy as number, r as number, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(cx as number, cy as number, (r as number) * 0.62, 0, Math.PI * 2)
+      ctx.stroke()
+    })
+  }
+
+  if (theme === 'お金') {
+    ctx.strokeStyle = gold
+    ctx.lineWidth = 2
+    ;[0.14, 0.22, 0.80, 0.88].forEach((yy) => {
+      ctx.beginPath()
+      ctx.moveTo(w * 0.13, h * yy)
+      ctx.bezierCurveTo(w * 0.36, h * (yy - 0.035), w * 0.62, h * (yy + 0.04), w * 0.87, h * yy)
+      ctx.stroke()
+    })
+    ctx.fillStyle = gold
+    ;[
+      [w * 0.17, h * 0.18],
+      [w * 0.83, h * 0.15],
+      [w * 0.20, h * 0.86],
+      [w * 0.78, h * 0.82]
+    ].forEach(([x, y]) => {
+      ctx.beginPath()
+      ctx.arc(x as number, y as number, 4, 0, Math.PI * 2)
+      ctx.fill()
+    })
+  }
+
+  if (theme === 'ご縁') {
+    ctx.strokeStyle = green
+    ctx.lineWidth = 2.2
+    const nodes = [
+      [w * 0.10, h * 0.17],
+      [w * 0.20, h * 0.25],
+      [w * 0.86, h * 0.18],
+      [w * 0.78, h * 0.30],
+      [w * 0.14, h * 0.82],
+      [w * 0.27, h * 0.78],
+      [w * 0.82, h * 0.82],
+      [w * 0.92, h * 0.73]
+    ]
+    for (let i = 0; i < nodes.length; i += 2) {
+      const a = nodes[i]
+      const b = nodes[i + 1]
+      ctx.beginPath()
+      ctx.moveTo(a[0], a[1])
+      ctx.lineTo(b[0], b[1])
+      ctx.stroke()
+    }
+    ctx.fillStyle = 'rgba(183,154,93,0.28)'
+    nodes.forEach(([x, y]) => {
+      ctx.beginPath()
+      ctx.arc(x, y, 6, 0, Math.PI * 2)
+      ctx.fill()
+    })
+  }
+
+  if (theme === '使命') {
+    ctx.strokeStyle = gold
+    ctx.lineWidth = 1.8
+    ;[
+      [w * 0.12, h * 0.16],
+      [w * 0.86, h * 0.82]
+    ].forEach(([cx, cy]) => {
+      for (let i = 0; i < 12; i++) {
+        const a = (Math.PI * 2 * i) / 12
+        ctx.beginPath()
+        ctx.moveTo((cx as number) + Math.cos(a) * 30, (cy as number) + Math.sin(a) * 30)
+        ctx.lineTo((cx as number) + Math.cos(a) * 125, (cy as number) + Math.sin(a) * 125)
+        ctx.stroke()
+      }
+    })
+  }
+
+  if (theme === '瞑想') {
+    ctx.strokeStyle = greenSoft
+    ctx.lineWidth = 2.2
+    ;[0.14, 0.18, 0.82, 0.86].forEach((yy) => {
+      ctx.beginPath()
+      ctx.moveTo(w * 0.08, h * yy)
+      ctx.bezierCurveTo(w * 0.28, h * (yy + 0.035), w * 0.44, h * (yy - 0.035), w * 0.64, h * yy)
+      ctx.bezierCurveTo(w * 0.76, h * (yy + 0.025), w * 0.86, h * (yy - 0.025), w * 0.94, h * yy)
+      ctx.stroke()
+    })
+  }
+
+  if (theme === '無料診断') {
+    ctx.strokeStyle = greenSoft
+    ctx.lineWidth = 2.4
+    ;[
+      [w * 0.13, h * 0.18, 68],
+      [w * 0.85, h * 0.20, 82],
+      [w * 0.18, h * 0.82, 92],
+      [w * 0.84, h * 0.80, 70]
+    ].forEach(([cx, cy, r]) => {
+      ctx.beginPath()
+      ctx.arc(cx as number, cy as number, r as number, 0, Math.PI * 2)
+      ctx.stroke()
+    })
+    ctx.strokeStyle = gold
+    ctx.lineWidth = 3
+    ;[
+      [w * 0.11, h * 0.27],
+      [w * 0.86, h * 0.72]
+    ].forEach(([x, y]) => {
+      ctx.beginPath()
+      ctx.moveTo(x as number, y as number)
+      ctx.lineTo((x as number) + 18, (y as number) + 24)
+      ctx.lineTo((x as number) + 58, (y as number) - 34)
+      ctx.stroke()
+    })
+  }
+
+  ctx.restore()
+}
+
+function drawCtaFrame(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.save()
+  const x = 54
+  const y = 92
+  const fw = w - 108
+  const fh = h - 176
+  const r = 44
+
+  ctx.strokeStyle = 'rgba(142,218,126,0.72)'
+  ctx.lineWidth = 4.5
+  roundedRectPath(ctx, x, y, fw, fh, r)
+  ctx.stroke()
+
+  ctx.strokeStyle = 'rgba(183,154,93,0.34)'
+  ctx.lineWidth = 1.4
+  roundedRectPath(ctx, x + 14, y + 14, fw - 28, fh - 28, r - 10)
+  ctx.stroke()
+
+  const label = 'GUIDE｜ご案内'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = `500 25px ${SERIF_FONT}`
+  const tw = ctx.measureText(label).width
+  const pw = tw + 48
+  const ph = 42
+  const px = w / 2 - pw / 2
+  const py = y + 26
+  ctx.fillStyle = 'rgba(255,255,255,0.92)'
+  roundedRectPath(ctx, px, py, pw, ph, ph / 2)
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(142,218,126,0.55)'
+  ctx.lineWidth = 1.2
+  roundedRectPath(ctx, px, py, pw, ph, ph / 2)
+  ctx.stroke()
+  ctx.fillStyle = COLOR_TEXT_MAIN
+  ctx.globalAlpha = 0.86
+  ctx.fillText(label, w / 2, py + ph / 2 + 1)
+  ctx.restore()
+}
+
 
 const FONT_LOAD_SPECS = [
   '400 28px "Noto Serif JP"',
@@ -232,15 +422,15 @@ function fillBackground(ctx: CanvasRenderingContext2D, w: number, h: number, bgA
     ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, w, h)
 
-    const bgAlpha = kind === 'middle' ? 0.78 : kind === 'cta' ? 0.90 : 0.94
+    const bgAlpha = kind === 'middle' ? 0.92 : kind === 'cta' ? 0.94 : 0.94
     ctx.save()
     ctx.globalAlpha = bgAlpha
     ctx.drawImage(bgAsset, 0, 0, w, h)
     ctx.restore()
 
     const center = ctx.createRadialGradient(w / 2, h * 0.48, 1, w / 2, h * 0.48, w * 0.58)
-    center.addColorStop(0, 'rgba(255,255,255,0.55)')
-    center.addColorStop(0.58, 'rgba(255,255,255,0.34)')
+    center.addColorStop(0, 'rgba(255,255,255,0.45)')
+    center.addColorStop(0.58, 'rgba(255,255,255,0.24)')
     center.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.fillStyle = center
     ctx.fillRect(0, 0, w, h)
@@ -573,6 +763,7 @@ function renderCoverStyleSlide(ctx: CanvasRenderingContext2D, w: number, h: numb
     drawFrame(ctx, w, h)
     drawCornerDecor(ctx, w, h)
   }
+  drawThemeAtmosphere(ctx, w, h, theme)
   drawThemeLabel(ctx, w, theme)
 
   ctx.textAlign = 'center'
@@ -634,7 +825,9 @@ function renderCtaSlide(ctx: CanvasRenderingContext2D, w: number, h: number, sub
     drawFrame(ctx, w, h)
     drawCornerDecor(ctx, w, h)
   }
+  drawThemeAtmosphere(ctx, w, h, theme)
   drawThemeLabel(ctx, w, theme)
+  drawCtaFrame(ctx, w, h)
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -697,6 +890,7 @@ function renderPointStyleSlide(
     drawFrame(ctx, w, h)
     drawCornerDecor(ctx, w, h)
   }
+  drawThemeAtmosphere(ctx, w, h, theme)
   drawThemeLabel(ctx, w, theme)
 
   // 上部ラベル：明朝体で統一。色はライトグリーンのアクセントのみ。
@@ -805,7 +999,7 @@ export async function renderSlideImage(slide: Slide, totalSlides: number, displa
   canvas.height = h
   const ctx = canvas.getContext('2d')!
   const bgKind: BackgroundKind = slide.role === 'TOP' ? 'top' : slide.role === 'CTA' ? 'cta' : 'middle'
-  const bgAsset = await loadBackgroundAsset(bgKind, theme)
+  const bgAsset = await loadBackgroundAsset(bgKind)
 
   if (slide.role === 'TOP') {
     renderCoverStyleSlide(ctx, w, h, slide.subheadline || '', slide.headline || '', '次のページへ　→', bgAsset, theme)

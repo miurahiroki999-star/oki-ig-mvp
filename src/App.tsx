@@ -17,7 +17,7 @@ export default function App() {
       <div className="app-header">
         <div className="app-title">
           吉澤瑛さん カルーセル投稿生成
-          <small>人生の質向上コンサルタント｜1日3回カルーセル投稿を量産</small>
+          <small>人生の質向上コンサルタント｜1日5回カルーセル投稿を量産</small>
         </div>
         <div className="tabs">
           {TABS.map((t) => (
