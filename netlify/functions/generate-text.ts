@@ -1,7 +1,7 @@
 // Netlify Function: OpenAI Responses APIを使って、カルーセル1投稿分のコンテンツ(JSON)を生成する。
 // APIキーはこの関数内(サーバー側環境変数)でのみ使用し、フロントには一切露出しない。
 //
-// 入力: { theme, memo?, avoidHeadlines, avoidLeads, brand:{displayName,title,lineUrl}, forbiddenWords, model }
+// 入力: { theme, memo?, avoidHeadlines, avoidLeads, avoidSlideTexts, brand:{displayName,title,lineUrl}, forbiddenWords, model }
 // 出力: { postTitle, topSub, topHeadline, slides6:[{label,mainText,highlights,bullets}×6], captionLead, hashtags } の厳密なJSON
 //
 // 【4. カルーセル構成】に合わせ、TOP(1枚目)とCTA(8枚目)はアプリ側(contentPlan.ts)で組み立てるため、
@@ -55,6 +55,11 @@ export async function handler(event: any) {
     '- 重要な語(『状態』『整えどころ』など)があればhighlightsにその部分文字列をそのまま入れてください(0〜2個程度)。',
     '- カルーセル内の文章と投稿欄本文を混同しないでください。ここで作るmainTextはカルーセル画像内の短い文章です。',
     '',
+    '【絶対重複禁止】',
+    '- 過去に使ったスライド本文と同じmainTextを絶対に出さないでください。',
+    '- 特に2枚目「問題提起」は、過去投稿・同日5投稿内で完全一致しないようにしてください。',
+    '- 意味が近くても、表現・切り口・言葉の並びを変えてください。',
+    '',
     '【captionLeadのルール】',
     '- 投稿欄本文の冒頭部分のみです(2〜4文程度、100〜200文字目安)。よくある相談・service・Present・profile・公式LINEリンク・ハッシュタグは含めないでください(これらはアプリ側で別途付与します)。',
     '',
@@ -68,6 +73,7 @@ export async function handler(event: any) {
     payload.memo ? `今回の自由メモ(参考程度・無理に反映しなくてよい): ${payload.memo}` : '',
     `避けるべきTOP見出し: ${avoidHeadlines.join(' / ') || 'なし'}`,
     `避けるべき投稿欄本文の冒頭: ${avoidLeads.join(' / ') || 'なし'}`,
+    `避けるべき過去スライド本文: ${avoidSlideTexts.slice(-120).join(' / ') || 'なし'}`,
     '',
     'postTitle(管理用の短いタイトル)、topSub(小見出し。基本は「心と現実が整い始めるヒント」のままでよい)、topHeadline、slides6(問題提起→相談→見立て→具体例→気づき→行動提案の順で6個。各要素はlabel・mainText・highlights・bullets)、captionLead、hashtags(8〜12個・#なし)をJSONで出力してください。'
   ].filter(Boolean)

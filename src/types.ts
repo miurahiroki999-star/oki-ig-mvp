@@ -140,6 +140,9 @@ export interface HistoryEntry {
   postTitle: string
   topHeadline: string
   captionLead: string
+  problemFingerprint?: string // 2枚目「問題提起」の重複回避用
+  slideFingerprints?: string[] // 中ページ本文の重複回避用
+  slideMainTexts?: string[] // OpenAIへの重複禁止指示用
   entryType: HistoryEntryType // 生成済み / 再生成済み(上書きせず全て残す)
   source: 'ai' | 'local'
 

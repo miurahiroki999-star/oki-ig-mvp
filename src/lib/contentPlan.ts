@@ -8,7 +8,7 @@
 //      ハッシュタグの最終形は、リンク誤りや素材差し替えの反映漏れを防ぐため常にアプリ側(この
 //      ファイル)で確定させる(【5. 投稿欄本文構成】の固定ブロックは設定画面の値をそのまま使う)。
 //
-// 重複回避は「履歴内の直近使用TOP見出し/投稿欄冒頭」を避けることで実現する。
+// 重複回避はTOP見出し/投稿欄冒頭に加え、中ページ本文（特に問題提起）まで履歴照合して実現する。
 
 import { ALL_THEMES, AppSettings, CarouselPost, HistoryEntry, Slide, Theme } from '../types'
 import { captionClosingLines, getPostBank, PostVariant } from './contentBank'
@@ -91,6 +91,119 @@ export function planThemesForDay(dayIndex: number, userTheme: Theme | 'auto', po
 
 function publishTimeForPost(postIndex: number): string {
   return dailyPostingSlots[postIndex - 1]?.time || ''
+}
+
+const MIDDLE_ROLES: Slide['role'][] = ['問題提起', '相談', '見立て', '具体例', '気づき', '行動提案']
+
+function normalizeForFingerprint(text: string): string {
+  return (text || '')
+    .replace(/\s+/g, '')
+    .replace(/[、。,.，．！？!?\-ー—―「」『』（）()【】［］\[\]・✔●○\u3000]/g, '')
+    .trim()
+}
+
+function slideFingerprint(role: string | undefined, text: string): string {
+  return `${role || '本文'}:${normalizeForFingerprint(text)}`
+}
+
+function fingerprintsFromSlides6(slides: Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[]): string[] {
+  return slides.map((s, i) => slideFingerprint(MIDDLE_ROLES[i] || s.label || '本文', s.mainText || '')).filter((s) => s.length > 0)
+}
+
+function slideMainTextsFromSlides6(slides: Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[]): string[] {
+  return slides.map((s) => (s.mainText || '').trim()).filter(Boolean)
+}
+
+function isSlideFingerprintUsed(history: HistoryEntry[], fingerprint: string): boolean {
+  if (!fingerprint) return false
+  return history.some((h) => {
+    if (h.problemFingerprint === fingerprint) return true
+    return Array.isArray(h.slideFingerprints) && h.slideFingerprints.includes(fingerprint)
+  })
+}
+
+function hasUsedSlides(history: HistoryEntry[], slides: Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[]): boolean {
+  return fingerprintsFromSlides6(slides).some((fp) => isSlideFingerprintUsed(history, fp))
+}
+
+function hasDuplicateSlideTextsWithinPost(slides: Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[]): boolean {
+  const fps = fingerprintsFromSlides6(slides)
+  return new Set(fps).size !== fps.length
+}
+
+function collectAvoidSlideTexts(history: HistoryEntry[]): string[] {
+  const texts = history.flatMap((h) => Array.isArray(h.slideMainTexts) ? h.slideMainTexts : [])
+  return Array.from(new Set(texts.filter(Boolean))).slice(-160)
+}
+
+const duplicateRewriteBank: Record<string, string[]> = {
+  問題提起: [
+    '今の違和感は、\n小さな整えどころを\n知らせているのかもしれません。',
+    'うまくいかない時ほど、\n原因を一つに決めつけず\n全体を見直すことが大切です。',
+    '同じ毎日の中にも、\n現実を軽くするヒントは\n静かに隠れています。',
+    '頑張っているのに重い時は、\nやり方ではなく\n状態を見直すタイミングです。',
+    '変えたい現実がある時ほど、\nまず今の自分の状態に\n目を向けてみてください。'
+  ],
+  相談: [
+    'よくいただく\n相談です。',
+    'こんな声を\nよく聞きます。',
+    '一人で抱えやすい\n悩みです。',
+    '実は多くの方が\nここで立ち止まります。'
+  ],
+  見立て: [
+    '原因は一つではなく、\n心・体・現実のつながりに\n出ていることがあります。',
+    '見えている問題の奥に、\nまだ整えられる場所が\n残っていることがあります。',
+    '表面的な出来事より、\n今の状態の偏りを\n見ることが大切です。'
+  ],
+  具体例: [
+    'たとえば、\n言葉の使い方や距離感が変わるだけで、\n受け取り方は変わります。',
+    '小さな習慣を一つ変えるだけで、\n日々の感じ方が\n少し軽くなることがあります。',
+    '見方が変わると、\n同じ出来事でも\n選べる行動が変わります。'
+  ],
+  気づき: [
+    '大切なのは、\n無理に変えることではなく\n今の整えどころに気づくことです。',
+    '答えを急がず、\nまずは今の状態を\n丁寧に見ていきましょう。',
+    '変化は、\n自分を責めることではなく\n気づくことから始まります。'
+  ],
+  行動提案: [
+    'まずは今日、\n気になった一つだけを\n静かに見直してみてください。',
+    '今すぐ大きく変えなくて大丈夫です。\n小さな違和感を\n一つ拾うところから始めましょう。',
+    '今日の内容を、\n自分の毎日に一つだけ\n当てはめてみてください。'
+  ]
+}
+
+function makeDuplicateSlidesUnique(
+  slides: Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[],
+  history: HistoryEntry[],
+  seed: number
+): Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[] {
+  const used = new Set<string>()
+  history.forEach((h) => (h.slideFingerprints || []).forEach((fp) => used.add(fp)))
+
+  return slides.map((s, i) => {
+    const role = MIDDLE_ROLES[i] || s.label || '本文'
+    let candidate = { ...s }
+    let fp = slideFingerprint(role, candidate.mainText || '')
+    if (!used.has(fp)) {
+      used.add(fp)
+      return candidate
+    }
+
+    const rewrites = duplicateRewriteBank[role] || duplicateRewriteBank.問題提起
+    for (let offset = 0; offset < rewrites.length; offset++) {
+      const text = rewrites[(seed + i + offset) % rewrites.length]
+      const nextFp = slideFingerprint(role, text)
+      if (!used.has(nextFp)) {
+        used.add(nextFp)
+        return { ...candidate, mainText: text, highlights: [], bullets: [] }
+      }
+    }
+
+    // 最後の保険：完全一致だけは避ける。
+    const fallback = `${candidate.mainText || ''}\n\n今回は、ここから見直してみてください。`
+    used.add(slideFingerprint(role, fallback))
+    return { ...candidate, mainText: fallback, highlights: [], bullets: [] }
+  })
 }
 
 
@@ -210,8 +323,15 @@ function isUsed(history: HistoryEntry[], field: 'topHeadline' | 'captionLead', v
 
 function pickUnusedVariant(variants: PostVariant[], history: HistoryEntry[], seed: number): PostVariant {
   const shuffled = shuffle(variants, seed)
-  const fresh = shuffled.find((v) => !isUsed(history, 'topHeadline', v.topHeadline) && !isUsed(history, 'captionLead', v.captionLead))
-  return fresh ?? shuffled.find((v) => !isUsed(history, 'topHeadline', v.topHeadline)) ?? shuffled[0]
+  const fresh = shuffled.find((v) => {
+    const slides = sanitizeSlidesForSeparateCta(variantToSlides6(v), '健康')
+    return !isUsed(history, 'topHeadline', v.topHeadline, Number.MAX_SAFE_INTEGER) &&
+      !isUsed(history, 'captionLead', v.captionLead, Number.MAX_SAFE_INTEGER) &&
+      !hasUsedSlides(history, slides)
+  })
+  return fresh ??
+    shuffled.find((v) => !isUsed(history, 'topHeadline', v.topHeadline, Number.MAX_SAFE_INTEGER) && !hasUsedSlides(history, sanitizeSlidesForSeparateCta(variantToSlides6(v), '健康'))) ??
+    shuffled[0]
 }
 
 function containsForbidden(text: string, forbiddenWords: string[]): boolean {
@@ -237,6 +357,7 @@ function isAcceptableTopHeadline(headline: string): boolean {
 
 function isAcceptableSlides(slides: Pick<Slide, 'label' | 'mainText' | 'highlights' | 'bullets'>[]): boolean {
   if (slides.length !== 6) return false
+  if (hasDuplicateSlideTextsWithinPost(slides)) return false
   return slides.every((s) => {
     const len = countJapaneseChars(s.mainText || '')
     const lines = (s.mainText || '').split('\n').map((l) => l.trim()).filter(Boolean)
@@ -278,11 +399,13 @@ function variantToSlides6(v: PostVariant): Pick<Slide, 'label' | 'mainText' | 'h
 
 function localCore(theme: Theme, history: HistoryEntry[], seed: number, settings: AppSettings): CoreResult {
   const variant = pickUnusedVariant(getPostBank(theme), history, seed)
+  const sanitized = sanitizeSlidesForSeparateCta(variantToSlides6(variant), theme)
+  const uniqueSlides = makeDuplicateSlidesUnique(sanitized, history, seed)
   return {
     postTitle: variant.topHeadline.replace(/\n/g, ''),
     topSub: variant.topSub,
     topHeadline: variant.topHeadline,
-    slides6: sanitizeSlidesForSeparateCta(variantToSlides6(variant), theme),
+    slides6: uniqueSlides,
     captionLead: variant.captionLead,
     hashtags: sanitizeHashtags(null, settings),
     source: 'local'
@@ -290,46 +413,53 @@ function localCore(theme: Theme, history: HistoryEntry[], seed: number, settings
 }
 
 async function generateCore(theme: Theme, history: HistoryEntry[], settings: AppSettings, seed: number, memo?: string): Promise<CoreResult> {
-  const recent = history.slice(-60)
-  const avoidHeadlines = Array.from(new Set(recent.map((h) => h.topHeadline))).slice(-20)
-  const avoidLeads = Array.from(new Set(recent.map((h) => h.captionLead))).slice(-20)
+  const recent = history.slice(-120)
+  const avoidHeadlines = Array.from(new Set(recent.map((h) => h.topHeadline))).slice(-40)
+  const avoidLeads = Array.from(new Set(recent.map((h) => h.captionLead))).slice(-40)
+  const avoidSlideTexts = collectAvoidSlideTexts(history)
 
-  const ai = await tryGenerateWithOpenAI({
-    theme,
-    memo,
-    avoidHeadlines,
-    avoidLeads,
-    brand: { displayName: settings.displayName, title: settings.title, lineUrl: settings.lineUrl },
-    forbiddenWords: settings.forbiddenWords,
-    model: settings.openaiModel
-  })
+  // AI生成は最大3回試す。過去スライド本文と一致したら採用しない。
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ai = await tryGenerateWithOpenAI({
+      theme,
+      memo,
+      avoidHeadlines,
+      avoidLeads,
+      avoidSlideTexts,
+      brand: { displayName: settings.displayName, title: settings.title, lineUrl: settings.lineUrl },
+      forbiddenWords: settings.forbiddenWords,
+      model: settings.openaiModel
+    })
 
-  const aiValid =
-    !!ai &&
-    ai.topHeadline.trim().length > 0 &&
-    isAcceptableTopHeadline(ai.topHeadline.trim()) &&
-    !isUsed(history, 'topHeadline', ai.topHeadline.trim(), 80) &&
-    !isUsed(history, 'captionLead', (ai.captionLead || '').trim(), 80) &&
-    isAcceptableSlides(ai.slides6) &&
-    !containsForbidden(ai.topHeadline, settings.forbiddenWords) &&
-    !ai.slides6.some((s) => containsForbidden(s.mainText || '', settings.forbiddenWords))
+    const sanitizedSlides = ai ? sanitizeSlidesForSeparateCta(ai.slides6, theme) : []
+    const aiValid =
+      !!ai &&
+      ai.topHeadline.trim().length > 0 &&
+      isAcceptableTopHeadline(ai.topHeadline.trim()) &&
+      !isUsed(history, 'topHeadline', ai.topHeadline.trim(), Number.MAX_SAFE_INTEGER) &&
+      !isUsed(history, 'captionLead', (ai.captionLead || '').trim(), Number.MAX_SAFE_INTEGER) &&
+      isAcceptableSlides(sanitizedSlides) &&
+      !hasUsedSlides(history, sanitizedSlides) &&
+      !containsForbidden(ai.topHeadline, settings.forbiddenWords) &&
+      !sanitizedSlides.some((s) => containsForbidden(s.mainText || '', settings.forbiddenWords))
 
-  if (aiValid && ai) {
-    return {
-      postTitle: ai.postTitle.trim() || ai.topHeadline.replace(/\n/g, ''),
-      topSub: ai.topSub.trim() || '心と現実が整い始めるヒント',
-      topHeadline: ai.topHeadline.trim(),
-      slides6: sanitizeSlidesForSeparateCta(ai.slides6, theme),
-      captionLead: ai.captionLead.trim(),
-      hashtags: sanitizeHashtags(ai.hashtags, settings),
-      source: 'ai'
+    if (aiValid && ai) {
+      return {
+        postTitle: ai.postTitle.trim() || ai.topHeadline.replace(/\n/g, ''),
+        topSub: ai.topSub.trim() || '心と現実が整い始めるヒント',
+        topHeadline: ai.topHeadline.trim(),
+        slides6: sanitizedSlides,
+        captionLead: ai.captionLead.trim(),
+        hashtags: sanitizeHashtags(ai.hashtags, settings),
+        source: 'ai'
+      }
     }
   }
 
-  // OpenAI未設定・失敗・タイムアウト・禁止表現ヒットのいずれかの場合のみローカルへフォールバック
+  // OpenAI未設定・失敗・重複ヒット時はローカルへフォールバック。
+  // ローカル側でも完全一致は makeDuplicateSlidesUnique で強制的に避ける。
   return localCore(theme, history, seed, settings)
 }
-
 
 function buildThemeTestimonialBlock(theme: Theme): string {
   const blocks: Record<Theme, string[]> = {
@@ -412,17 +542,15 @@ function buildCaption(captionLead: string, settings: AppSettings, hashtags: stri
 
 function buildSlides(core: CoreResult, seed: number, theme: Theme, postIndex: number): Slide[] {
   const cta = getThemeCta(theme, seed)
-  const roles: { label: string }[] = []
   const slides: Slide[] = []
 
   slides.push({ index: 1, role: 'TOP', headline: core.topHeadline, subheadline: core.topSub, themeLabel: theme, backgroundPostIndex: postIndex })
 
-  const middleRoles: Slide['role'][] = ['問題提起', '相談', '見立て', '具体例', '気づき', '行動提案']
   core.slides6.forEach((s, i) => {
     slides.push({
       index: i + 2,
-      role: middleRoles[i],
-      label: middleRoles[i],
+      role: MIDDLE_ROLES[i],
+      label: MIDDLE_ROLES[i],
       mainText: s.mainText,
       highlights: s.highlights,
       bullets: s.bullets,
@@ -491,6 +619,9 @@ export async function buildDayPosts(
       postTitle: core.postTitle,
       topHeadline: core.topHeadline,
       captionLead: core.captionLead,
+      problemFingerprint: slideFingerprint('問題提起', core.slides6[0]?.mainText || ''),
+      slideFingerprints: fingerprintsFromSlides6(core.slides6),
+      slideMainTexts: slideMainTextsFromSlides6(core.slides6),
       entryType: 'generated',
       source: core.source
     })

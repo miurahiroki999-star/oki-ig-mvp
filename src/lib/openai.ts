@@ -9,6 +9,7 @@ export interface TryGenerateParams {
   memo?: string
   avoidHeadlines: string[]
   avoidLeads: string[]
+  avoidSlideTexts: string[]
   brand: { displayName: string; title: string; lineUrl: string }
   forbiddenWords: string[]
   model: string

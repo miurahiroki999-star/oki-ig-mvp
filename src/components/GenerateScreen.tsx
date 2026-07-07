@@ -14,8 +14,22 @@ function todayStr() {
   return `${y}-${m}-${day}`
 }
 
+
+function normalizeForHistory(text: string): string {
+  return (text || '')
+    .replace(/\s+/g, '')
+    .replace(/[、。,.，．！？!?\-ー—―「」『』（）()【】［］\[\]・✔●○\u3000]/g, '')
+    .trim()
+}
+
+function slideFingerprintForHistory(role: string | undefined, text: string): string {
+  return `${role || '本文'}:${normalizeForHistory(text)}`
+}
+
 function toHistoryEntry(p: CarouselPost, entryType: HistoryEntryType): HistoryEntry {
   const topSlide = p.slides.find((s) => s.role === 'TOP')
+  const middleSlides = p.slides.filter((s) => s.role !== 'TOP' && s.role !== 'CTA')
+  const problem = middleSlides.find((s) => s.role === '問題提起')
   return {
     id: `${p.id}-${entryType}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     createdAt: new Date().toISOString(),
@@ -28,6 +42,9 @@ function toHistoryEntry(p: CarouselPost, entryType: HistoryEntryType): HistoryEn
     postTitle: p.postTitle,
     topHeadline: topSlide?.headline || p.postTitle,
     captionLead: p.captionLead,
+    problemFingerprint: problem ? slideFingerprintForHistory('問題提起', problem.mainText || '') : undefined,
+    slideFingerprints: middleSlides.map((s) => slideFingerprintForHistory(s.role, s.mainText || '')).filter(Boolean),
+    slideMainTexts: middleSlides.map((s) => (s.mainText || '').trim()).filter(Boolean),
     entryType,
     source: p.source
   }

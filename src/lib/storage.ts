@@ -139,14 +139,73 @@ export function resetSettingsToDefaults() {
   return defaultSettings
 }
 
+
+function normalizeHistoryText(text: string): string {
+  return (text || '')
+    .replace(/\s+/g, '')
+    .replace(/[、。,.，．！？!?\-ー—―「」『』（）()【】［］\[\]・✔●○\u3000]/g, '')
+    .trim()
+}
+
+function historySlideFingerprint(role: string | undefined, text: string): string {
+  return `${role || '本文'}:${normalizeHistoryText(text)}`
+}
+
+function historyFromBatchPost(post: any): HistoryEntry | null {
+  if (!post || !Array.isArray(post.slides)) return null
+  const topSlide = post.slides.find((s: any) => s?.role === 'TOP')
+  const middleSlides = post.slides.filter((s: any) => s?.role && s.role !== 'TOP' && s.role !== 'CTA')
+  const slideFingerprints = middleSlides
+    .map((s: any) => historySlideFingerprint(s.role, s.mainText || ''))
+    .filter((s: string) => s.length > 0)
+  const slideMainTexts = middleSlides
+    .map((s: any) => String(s.mainText || '').trim())
+    .filter((s: string) => s.length > 0)
+  const problem = middleSlides.find((s: any) => s?.role === '問題提起')
+  return {
+    id: `batch-${post.id || `${post.printDate}-${post.dayIndex}-${post.postIndex}`}`,
+    createdAt: post.createdAt || new Date().toISOString(),
+    printDate: post.printDate || '',
+    printRun: post.printRun || 0,
+    dayIndex: post.dayIndex || 1,
+    postIndex: post.postIndex || 1,
+    publishTime: post.publishTime,
+    theme: post.theme || '健康',
+    postTitle: post.postTitle || topSlide?.headline || '',
+    topHeadline: topSlide?.headline || post.postTitle || '',
+    captionLead: post.captionLead || '',
+    problemFingerprint: problem ? historySlideFingerprint('問題提起', problem.mainText || '') : undefined,
+    slideFingerprints,
+    slideMainTexts,
+    entryType: 'generated',
+    source: post.source || 'local'
+  }
+}
+
+function dedupeHistory(entries: HistoryEntry[]): HistoryEntry[] {
+  const seen = new Set<string>()
+  const out: HistoryEntry[] = []
+  entries.forEach((e) => {
+    const key = e.id || `${e.printDate}-${e.printRun}-${e.dayIndex}-${e.postIndex}-${e.topHeadline}`
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push(e)
+  })
+  return out
+}
+
 // ---------- 履歴(重複回避用) ----------
 // 履歴は上書きせず、生成済み(generated)・再生成済み(regenerated)をすべて追加保存する。
 export function getHistory(): HistoryEntry[] {
-  return readJson(KEYS.history, [])
+  const saved = readJson<HistoryEntry[]>(KEYS.history, [])
+  const batches = readJson<GenerationBatch[]>(KEYS.batches, [])
+  const derived = batches.flatMap((b: any) => Array.isArray(b.posts) ? b.posts.map(historyFromBatchPost).filter(Boolean) as HistoryEntry[] : [])
+  return dedupeHistory([...saved, ...derived])
 }
 export function appendHistory(entries: HistoryEntry[]) {
-  const cur = getHistory()
-  writeJson(KEYS.history, [...cur, ...entries])
+  // 保存済みバッチから派生する履歴は書き込まず、明示履歴だけ保存する。
+  const cur = readJson<HistoryEntry[]>(KEYS.history, [])
+  writeJson(KEYS.history, dedupeHistory([...cur, ...entries]))
 }
 export function resetHistory() {
   writeJson(KEYS.history, [])
