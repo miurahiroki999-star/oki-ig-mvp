@@ -30,6 +30,11 @@ export async function handler(event: any) {
   const forbiddenWords: string[] = Array.isArray(payload.forbiddenWords) ? payload.forbiddenWords : []
   const avoidHeadlines: string[] = Array.isArray(payload.avoidHeadlines) ? payload.avoidHeadlines : []
   const avoidLeads: string[] = Array.isArray(payload.avoidLeads) ? payload.avoidLeads : []
+  const avoidSlideTexts: string[] = Array.isArray(payload.avoidSlideTexts) ? payload.avoidSlideTexts : []
+  const generationAngle =
+    payload.generationAngle && typeof payload.generationAngle === 'object'
+      ? payload.generationAngle
+      : null
 
   const displayName = brand.displayName || '吉澤瑛'
   const title = brand.title || '人生の質向上コンサルタント'
