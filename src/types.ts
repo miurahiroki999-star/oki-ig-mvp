@@ -90,6 +90,9 @@ export interface CarouselPost {
   slides: Slide[]
   caption: string // 投稿欄本文(完成形・そのままコピペ用)
   captionLead: string // 投稿欄本文の冒頭部分のみ(重複回避判定用)
+  angleKey?: string // 生成前に選んだ切り口キー
+  angleLabel?: string // 生成前に選んだ切り口名
+  angleInstruction?: string // AIへ渡した切り口指示
   hashtags: string[]
   regenerationCount: number
   createdAt: string
@@ -140,6 +143,9 @@ export interface HistoryEntry {
   postTitle: string
   topHeadline: string
   captionLead: string
+  angleKey?: string // 使用済み切り口キー
+  angleLabel?: string // 使用済み切り口名
+  angleInstruction?: string // AIへ渡した切り口指示
   problemFingerprint?: string // 2枚目「問題提起」の重複回避用
   slideFingerprints?: string[] // 中ページ本文の重複回避用
   slideMainTexts?: string[] // OpenAIへの重複禁止指示用

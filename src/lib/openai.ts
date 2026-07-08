@@ -10,6 +10,7 @@ export interface TryGenerateParams {
   avoidHeadlines: string[]
   avoidLeads: string[]
   avoidSlideTexts: string[]
+  generationAngle?: { key: string; label: string; instruction: string }
   brand: { displayName: string; title: string; lineUrl: string }
   forbiddenWords: string[]
   model: string

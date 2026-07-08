@@ -60,6 +60,14 @@ export async function handler(event: any) {
     '- 特に2枚目「問題提起」は、過去投稿・同日5投稿内で完全一致しないようにしてください。',
     '- 意味が近くても、表現・切り口・言葉の並びを変えてください。',
     '',
+    generationAngle ? [
+      '【今回の切り口】',
+      `切り口名: ${generationAngle.label || generationAngle.key || ''}`,
+      `切り口指示: ${generationAngle.instruction || ''}`,
+      '- 今回の投稿は、この切り口から外れないでください。',
+      '- 過去投稿と同じ悩み・同じ問題提起へ戻らないでください。',
+      ''
+    ].join('\n') : '',
     '【captionLeadのルール】',
     '- 投稿欄本文の冒頭部分のみです(2〜4文程度、100〜200文字目安)。よくある相談・service・Present・profile・公式LINEリンク・ハッシュタグは含めないでください(これらはアプリ側で別途付与します)。',
     '',
@@ -74,6 +82,7 @@ export async function handler(event: any) {
     `避けるべきTOP見出し: ${avoidHeadlines.join(' / ') || 'なし'}`,
     `避けるべき投稿欄本文の冒頭: ${avoidLeads.join(' / ') || 'なし'}`,
     `避けるべき過去スライド本文: ${avoidSlideTexts.slice(-120).join(' / ') || 'なし'}`,
+    generationAngle ? `今回使う未使用切り口: ${generationAngle.label || generationAngle.key} / ${generationAngle.instruction || ''}` : '',
     '',
     'postTitle(管理用の短いタイトル)、topSub(小見出し。基本は「心と現実が整い始めるヒント」のままでよい)、topHeadline、slides6(問題提起→相談→見立て→具体例→気づき→行動提案の順で6個。各要素はlabel・mainText・highlights・bullets)、captionLead、hashtags(8〜12個・#なし)をJSONで出力してください。'
   ].filter(Boolean)
