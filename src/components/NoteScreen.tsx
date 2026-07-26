@@ -76,6 +76,34 @@ export default function NoteScreen({ source, onSourceChange, memo, onMemoChange 
     a.click()
   }
 
+  function sanitizeFilenamePart(text: string): string {
+    return text
+      .replace(/[\\/:*?"<>|\n\r]/g, '')
+      .trim()
+      .slice(0, 40)
+  }
+
+  function downloadMarkdown() {
+    if (!draft) return
+    const blob = new Blob([draft.bodyMarkdown], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${draft.printDate}_${sanitizeFilenamePart(draft.title)}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function updatePublishedUrlLocal(value: string) {
+    if (!draft) return
+    setDraft({ ...draft, publishedUrl: value })
+  }
+
+  function persistPublishedUrl() {
+    if (!draft) return
+    saveNoteDraft(draft)
+  }
+
   return (
     <div>
       <SourceSelector source={source} onSourceChange={onSourceChange} memo={memo} onMemoChange={onMemoChange} />
@@ -113,12 +141,23 @@ export default function NoteScreen({ source, onSourceChange, memo, onMemoChange 
 
           <div className="post-actions" style={{ marginTop: 10 }}>
             <button className="mini-btn" onClick={copyBody}>NOTE本文をコピー</button>
+            <button className="mini-btn" onClick={downloadMarkdown}>.mdダウンロード</button>
             <button className="mini-btn" onClick={handleGenerateImage} disabled={imageLoading}>
               {imageLoading ? '見出し画像を生成中...' : '見出し画像を生成'}
             </button>
             {draft.imageDataUrl && (
               <button className="mini-btn" onClick={downloadImage}>見出し画像をダウンロード</button>
             )}
+          </div>
+
+          <div className="form-row" style={{ marginTop: 12 }}>
+            <label>公開後のNOTE記事URL（任意・Threadsのリンクシェア型に自動反映されます）</label>
+            <input
+              value={draft.publishedUrl || ''}
+              onChange={(e) => updatePublishedUrlLocal(e.target.value)}
+              onBlur={persistPublishedUrl}
+              placeholder="https://note.com/..."
+            />
           </div>
 
           {draft.imageDataUrl && (

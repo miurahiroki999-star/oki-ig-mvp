@@ -208,12 +208,6 @@ export function buildNoteDraft(
 
 // ---------- Threads組み立て ----------
 
-const THREADS_PATTERNS: ThreadsPatternKey[] = ['link_share', 'assertive', 'mantra']
-
-export function pickRandomThreadsPattern(): ThreadsPatternKey {
-  return THREADS_PATTERNS[Math.floor(Math.random() * THREADS_PATTERNS.length)]
-}
-
 function buildThreadsBody(core: NoteThreadsCoreResult, pattern: ThreadsPatternKey, noteUrl?: string): string {
   if (pattern === 'link_share') {
     const url = noteUrl && noteUrl.trim() ? noteUrl.trim() : '[ここに公開後のNOTE記事URLを貼り付けてください]'
@@ -229,7 +223,7 @@ export function buildThreadsDraft(
   core: NoteThreadsCoreResult,
   source: SourceSelection,
   pattern: ThreadsPatternKey,
-  extra: { id: string; printDate: string; regenerationCount: number; noteUrl?: string }
+  extra: { id: string; printDate: string; publishTime: string; regenerationCount: number; noteUrl?: string }
 ): ThreadsDraft {
   return {
     id: extra.id,
@@ -239,11 +233,38 @@ export function buildThreadsDraft(
     sourcePostTitle: source.postTitle,
     sourceAngleLabel: source.angleLabel,
     pattern,
+    publishTime: extra.publishTime,
     noteUrl: extra.noteUrl,
     bodyText: buildThreadsBody(core, pattern, extra.noteUrl),
     regenerationCount: extra.regenerationCount,
     source: core.source
   }
+}
+
+// 1日3本体制(v2仕様): 1回の生成操作でA/B/Cの3投稿をまとめて作る。
+// 7:00=B(断定意見・問題提起型) / 12:30=A(NOTEリンクシェア型) / 21:30=C(マントラ列挙型)。
+// 投稿間隔が4時間以上空くようにするThreadsのアルゴリズム推奨に合わせた時間割。
+export const THREADS_DAILY_SLOTS: { time: string; pattern: ThreadsPatternKey }[] = [
+  { time: '7:00', pattern: 'assertive' },
+  { time: '12:30', pattern: 'link_share' },
+  { time: '21:30', pattern: 'mantra' }
+]
+
+export function buildThreadsDraftsForDay(
+  core: NoteThreadsCoreResult,
+  source: SourceSelection,
+  extra: { idPrefix: string; printDate: string; regenerationCount: number; noteUrl?: string }
+): ThreadsDraft[] {
+  return THREADS_DAILY_SLOTS.map((slot) =>
+    buildThreadsDraft(core, source, slot.pattern, {
+      id: `${extra.idPrefix}-${slot.pattern}`,
+      printDate: extra.printDate,
+      publishTime: slot.time,
+      regenerationCount: extra.regenerationCount,
+      // NOTE記事URLはA(12:30・リンクシェア型)でのみ使用する
+      noteUrl: slot.pattern === 'link_share' ? extra.noteUrl : undefined
+    })
+  )
 }
 
 // ---------- 履歴エントリ変換 ----------

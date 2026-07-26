@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { ThreadsDraft, ThreadsPatternKey } from '../types'
-import { getSettings, getNoteThreadsHistory, appendNoteThreadsHistory, saveThreadsDraft } from '../lib/storage'
-import { generateNoteThreadsCore, buildThreadsDraft, toNoteThreadsHistoryEntry, pickRandomThreadsPattern, SourceSelection } from '../lib/noteThreadsPlan'
+import { getSettings, getNoteThreadsHistory, appendNoteThreadsHistory, saveThreadsDraft, getNoteDrafts } from '../lib/storage'
+import { generateNoteThreadsCore, buildThreadsDraftsForDay, toNoteThreadsHistoryEntry, SourceSelection } from '../lib/noteThreadsPlan'
 import { todayStr } from '../lib/dateUtil'
 import SourceSelector from './SourceSelector'
 
@@ -18,12 +18,12 @@ const PATTERN_LABEL: Record<ThreadsPatternKey, string> = {
   mantra: 'C: マントラ列挙型'
 }
 
+// v2仕様: 1日3本体制。1回の生成操作で7:00(B)/12:30(A)/21:30(C)をまとめて出力する。
 export default function ThreadsScreen({ source, onSourceChange, memo, onMemoChange }: Props) {
-  const [draft, setDraft] = useState<ThreadsDraft | null>(null)
-  const [patternChoice, setPatternChoice] = useState<ThreadsPatternKey | 'random'>('random')
+  const [drafts, setDrafts] = useState<ThreadsDraft[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [editing, setEditing] = useState(false)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [draftText, setDraftText] = useState('')
 
   async function handleGenerate() {
@@ -37,34 +37,48 @@ export default function ThreadsScreen({ source, onSourceChange, memo, onMemoChan
       const settings = getSettings()
       const history = getNoteThreadsHistory()
       const core = await generateNoteThreadsCore(source, settings, history, memo)
-      const pattern = patternChoice === 'random' ? pickRandomThreadsPattern() : patternChoice
       const printDate = todayStr()
-      const newDraft = buildThreadsDraft(core, source, pattern, {
-        id: `threads-${printDate}-${Date.now()}`,
+
+      // 同日・同テーマで生成済みのNOTE記事があれば、公開後URL(手動入力済みの場合)をA(12:30枠)へ自動で紐づける
+      const todaysNote = getNoteDrafts()
+        .filter((d) => d.printDate === printDate && d.sourceTheme === source.theme)
+        .slice(-1)[0]
+
+      const newDrafts = buildThreadsDraftsForDay(core, source, {
+        idPrefix: `threads-${printDate}-${Date.now()}`,
         printDate,
-        regenerationCount: draft ? draft.regenerationCount + 1 : 0,
-        noteUrl: draft?.noteUrl
+        regenerationCount: drafts ? drafts[0].regenerationCount + 1 : 0,
+        noteUrl: todaysNote?.publishedUrl
       })
-      setDraft(newDraft)
-      setDraftText(newDraft.bodyText)
-      saveThreadsDraft(newDraft)
-      appendNoteThreadsHistory([toNoteThreadsHistoryEntry(source, core, printDate, { pattern, body: newDraft.bodyText })])
+
+      newDrafts.forEach((d) => saveThreadsDraft(d))
+      appendNoteThreadsHistory(
+        newDrafts.map((d) => toNoteThreadsHistoryEntry(source, core, printDate, { pattern: d.pattern, body: d.bodyText }))
+      )
+      setDrafts(newDrafts)
+      setEditingIndex(null)
     } finally {
       setLoading(false)
     }
   }
 
-  function saveEdit() {
-    if (!draft) return
-    const updated = { ...draft, bodyText: draftText }
-    setDraft(updated)
-    saveThreadsDraft(updated)
-    setEditing(false)
+  function startEdit(index: number) {
+    if (!drafts) return
+    setDraftText(drafts[index].bodyText)
+    setEditingIndex(index)
   }
 
-  async function copyBody() {
-    if (!draft) return
-    await navigator.clipboard.writeText(draft.bodyText)
+  function saveEdit(index: number) {
+    if (!drafts) return
+    const updated = drafts.map((d, i) => (i === index ? { ...d, bodyText: draftText } : d))
+    setDrafts(updated)
+    saveThreadsDraft(updated[index])
+    setEditingIndex(null)
+  }
+
+  async function copyBody(index: number) {
+    if (!drafts) return
+    await navigator.clipboard.writeText(drafts[index].bodyText)
     alert('Threads本文をコピーしました。Threadsにそのまま貼り付けできます。')
   }
 
@@ -75,42 +89,33 @@ export default function ThreadsScreen({ source, onSourceChange, memo, onMemoChan
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="section-title">Threads下書き生成</div>
         <div className="helper-text" style={{ marginBottom: 12 }}>
-          1日1本、コピペ前提のThreads投稿下書きを生成します。3パターン（リンクシェア／断定意見／マントラ列挙）から自動選択します。
-          ハッシュタグは付けません。Threadsへの投稿は行いません（下書きの生成まで）。
-        </div>
-        <div className="form-row">
-          <label>パターン</label>
-          <select value={patternChoice} onChange={(e) => setPatternChoice(e.target.value as ThreadsPatternKey | 'random')}>
-            <option value="random">ランダム選択（推奨）</option>
-            <option value="link_share">{PATTERN_LABEL.link_share}</option>
-            <option value="assertive">{PATTERN_LABEL.assertive}</option>
-            <option value="mantra">{PATTERN_LABEL.mantra}</option>
-          </select>
+          1回の生成操作で1日3本（7:00＝断定意見型／12:30＝リンクシェア型／21:30＝マントラ列挙型）をまとめて作成します。
+          投稿間隔を4時間以上空けるThreadsのアルゴリズム推奨に合わせた時間割です。ハッシュタグは付けません。Threadsへの投稿は行いません（下書きの生成まで）。
         </div>
         <div className="btn-row">
           <button className="btn btn-primary" onClick={handleGenerate} disabled={loading || !source}>
-            {loading ? '生成中...' : draft ? 'この投稿を再生成' : 'Threads下書きを生成する'}
+            {loading ? '生成中...' : drafts ? '3投稿をまとめて再生成' : '3投稿をまとめて生成する'}
           </button>
         </div>
         {error && <div className="helper-text" style={{ marginTop: 8, color: '#c0503f' }}>{error}</div>}
       </div>
 
-      {draft && (
-        <div className="card">
+      {drafts && drafts.map((draft, index) => (
+        <div className="card" style={{ marginBottom: 16 }} key={draft.id}>
           <div className="carousel-card-header">
             <span className="post-tag">
-              {draft.printDate} ・ テーマ:{draft.sourceTheme} ・ {PATTERN_LABEL[draft.pattern]} ・ {draft.source === 'ai' ? 'AI生成' : 'ローカル生成'}
+              {draft.publishTime}公開 ・ {PATTERN_LABEL[draft.pattern]} ・ テーマ:{draft.sourceTheme} ・ {draft.source === 'ai' ? 'AI生成' : 'ローカル生成'}
             </span>
             {draft.regenerationCount > 0 && <span className="helper-text">再生成 {draft.regenerationCount} 回</span>}
           </div>
 
           {draft.pattern === 'link_share' && (
             <div className="helper-text" style={{ marginTop: 8 }}>
-              NOTE記事を公開した後、下の本文を「編集」して記事URLに差し替えてください（未公開の間はプレースホルダーのままです）。
+              NOTEタブで「公開後のNOTE記事URL」を入力・保存すると、次回生成時にこの本文へ自動で反映されます。未入力の間はプレースホルダーのままです。
             </div>
           )}
 
-          {!editing ? (
+          {editingIndex !== index ? (
             <div className="post-body-text" style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{draft.bodyText}</div>
           ) : (
             <textarea
@@ -121,20 +126,20 @@ export default function ThreadsScreen({ source, onSourceChange, memo, onMemoChan
           )}
 
           <div className="post-actions" style={{ marginTop: 10 }}>
-            {!editing ? (
+            {editingIndex !== index ? (
               <>
-                <button className="mini-btn" onClick={copyBody}>Threads本文をコピー</button>
-                <button className="mini-btn" onClick={() => { setDraftText(draft.bodyText); setEditing(true) }}>本文を編集</button>
+                <button className="mini-btn" onClick={() => copyBody(index)}>Threads本文をコピー</button>
+                <button className="mini-btn" onClick={() => startEdit(index)}>本文を編集</button>
               </>
             ) : (
               <>
-                <button className="mini-btn" onClick={saveEdit}>保存する</button>
-                <button className="mini-btn" onClick={() => setEditing(false)}>キャンセル</button>
+                <button className="mini-btn" onClick={() => saveEdit(index)}>保存する</button>
+                <button className="mini-btn" onClick={() => setEditingIndex(null)}>キャンセル</button>
               </>
             )}
           </div>
         </div>
-      )}
+      ))}
     </div>
   )
 }

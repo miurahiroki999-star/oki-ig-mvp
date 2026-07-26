@@ -189,6 +189,7 @@ export interface NoteDraft {
   bodyMarkdown: string // 上記を組み立てた最終コピペ用本文
   imagePrompt: string
   imageDataUrl?: string
+  publishedUrl?: string // NOTEに手動公開した後のURL。Threads A(12:30枠)のリンクシェアに自動で使われる
   regenerationCount: number
   source: 'ai' | 'local'
 }
@@ -203,6 +204,7 @@ export interface ThreadsDraft {
   sourcePostTitle: string
   sourceAngleLabel?: string
   pattern: ThreadsPatternKey
+  publishTime: string // '7:00' | '12:30' | '21:30'
   noteUrl?: string // A(リンクシェア型)で使用。未公開の場合は空でプレースホルダーを表示
   bodyText: string // コピペ用の最終本文
   regenerationCount: number
