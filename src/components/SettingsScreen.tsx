@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { AppSettings } from '../types'
-import { getSettings, saveSettings, resetSettingsToDefaults, resetHistory } from '../lib/storage'
+import { getSettings, saveSettings, resetSettingsToDefaults, resetHistory, resetNoteThreadsHistory } from '../lib/storage'
 
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings>(getSettings())
@@ -23,8 +23,9 @@ export default function SettingsScreen() {
   }
 
   function handleResetHistory() {
-    if (!confirm('重複回避用の生成履歴をリセットします。よろしいですか？（生成済みのZIP・画像には影響しません）')) return
+    if (!confirm('重複回避用の生成履歴（Instagram・NOTE・Threads）をリセットします。よろしいですか？（生成済みのZIP・画像・下書きには影響しません）')) return
     resetHistory()
+    resetNoteThreadsHistory()
     setHistoryCleared(true)
   }
 
@@ -90,6 +91,22 @@ export default function SettingsScreen() {
       <div className="form-row">
         <label>profileブロック</label>
         <textarea style={{ minHeight: 90 }} value={settings.profileBlock} onChange={(e) => update('profileBlock', e.target.value)} />
+      </div>
+
+      <div className="section-title" style={{ fontSize: 16, marginTop: 24 }}>NOTE下書きの固定ブロック</div>
+      <div className="helper-text" style={{ marginBottom: 12 }}>
+        NOTE記事末尾に毎回挿入されるCTA文（公式LINEのURLは自動で下に付与されます）と、固定ハッシュタグです。
+      </div>
+      <div className="form-row">
+        <label>NOTE CTAブロック</label>
+        <textarea style={{ minHeight: 110 }} value={settings.noteCtaBlock} onChange={(e) => update('noteCtaBlock', e.target.value)} />
+      </div>
+      <div className="form-row">
+        <label>NOTE固定ハッシュタグ（カンマ区切り・#は不要・テーマワードと組み合わせて3〜4個になります）</label>
+        <textarea
+          value={settings.noteFixedHashtags.join(', ')}
+          onChange={(e) => update('noteFixedHashtags', e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+        />
       </div>
 
       <div className="form-row">

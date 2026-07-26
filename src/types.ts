@@ -127,6 +127,8 @@ export interface AppSettings {
   serviceBlock: string // service紹介
   presentBlock: string // Present導線
   profileBlock: string // profile紹介
+  noteCtaBlock: string // NOTE記事末尾の固定CTA文(公式LINE誘導)
+  noteFixedHashtags: string[] // NOTEハッシュタグの固定タグ(可変のテーマタグと組み合わせる)
 }
 
 export type HistoryEntryType = 'generated' | 'regenerated'
@@ -161,4 +163,62 @@ export interface HistoryEntry {
   body?: string
   templateId?: string
   regenerationCount?: number
+}
+
+// ---------- NOTE／Threads下書き生成(フェーズ1) ----------
+// ネタ元は同じ日のInstagram5投稿のうち1テーマ。NOTE用の別テーマローテーションは組まない。
+
+export interface NoteSection {
+  heading: string // ## 見出し
+  body: string // - 箇条書きや**太字**を含む本文(NOTE対応Markdownのみ)
+}
+
+export interface NoteDraft {
+  id: string
+  createdAt: string
+  printDate: string
+  sourceTheme: Theme
+  sourcePostTitle: string // ネタ元にしたIG投稿のタイトル
+  sourceAngleLabel?: string
+  title: string // 断定・逆説型タイトル
+  lead: string // リード文(2〜4行)
+  sections: NoteSection[] // 見出し3〜5個
+  summary: string // まとめ(箇条書きまたは対比フレーズ)
+  ctaBlock: string // 固定CTA文＋公式LINE誘導リンク
+  hashtags: string[] // 3〜4個
+  bodyMarkdown: string // 上記を組み立てた最終コピペ用本文
+  imagePrompt: string
+  imageDataUrl?: string
+  regenerationCount: number
+  source: 'ai' | 'local'
+}
+
+export type ThreadsPatternKey = 'link_share' | 'assertive' | 'mantra'
+
+export interface ThreadsDraft {
+  id: string
+  createdAt: string
+  printDate: string
+  sourceTheme: Theme
+  sourcePostTitle: string
+  sourceAngleLabel?: string
+  pattern: ThreadsPatternKey
+  noteUrl?: string // A(リンクシェア型)で使用。未公開の場合は空でプレースホルダーを表示
+  bodyText: string // コピペ用の最終本文
+  regenerationCount: number
+  source: 'ai' | 'local'
+}
+
+export interface NoteThreadsHistoryEntry {
+  id: string
+  createdAt: string
+  printDate: string
+  theme: Theme
+  angleLabel?: string
+  noteTitle?: string
+  noteLead?: string
+  noteTitleFingerprint?: string
+  threadsPattern?: ThreadsPatternKey
+  threadsBody?: string
+  threadsBodyFingerprint?: string
 }

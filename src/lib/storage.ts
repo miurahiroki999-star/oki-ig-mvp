@@ -1,7 +1,7 @@
 // ローカル保存レイヤー。将来 Supabase 等に差し替えやすいよう、
 // 呼び出し側は必ずこのモジュール経由でデータを読み書きする。
 
-import { AppSettings, BackgroundTemplate, GenerationBatch, HistoryEntry, PhotoAsset } from '../types'
+import { AppSettings, BackgroundTemplate, GenerationBatch, HistoryEntry, NoteDraft, NoteThreadsHistoryEntry, PhotoAsset, ThreadsDraft } from '../types'
 
 const KEYS = {
   settings: 'oki_ig_carousel_settings_v1',
@@ -9,7 +9,10 @@ const KEYS = {
   batches: 'oki_ig_carousel_batches_v1',
   printRunCounters: 'oki_ig_carousel_print_run_counters_v1',
   legacyPhotos: 'oki_ig_legacy_photos_v1',
-  legacyTemplates: 'oki_ig_legacy_templates_v1'
+  legacyTemplates: 'oki_ig_legacy_templates_v1',
+  noteThreadsHistory: 'oki_note_threads_history_v1',
+  noteDrafts: 'oki_note_drafts_v1',
+  threadsDrafts: 'oki_threads_drafts_v1'
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -99,7 +102,15 @@ export const defaultSettings: AppSettings = {
     '32年間で2万人以上を鑑定してきた',
     'プロ鑑定士',
     '（手相・タロット・西洋占星術）としても活動。'
-  ].join('\n')
+  ].join('\n'),
+  noteCtaBlock: [
+    '―――',
+    'ここまで読んでくださりありがとうございます。',
+    '',
+    '公式LINEでは、健康・お金・人間関係・使命を整える「人生の質向上チェック」を無料でご案内しています。',
+    '気になった方は、下記のリンクからご登録ください。'
+  ].join('\n'),
+  noteFixedHashtags: ['人生の質向上', '人生の質向上コンサルタント']
 }
 
 export function getSettings(): AppSettings {
@@ -218,12 +229,40 @@ export function resetHistory() {
 export function getBatches(): GenerationBatch[] {
   return readJson(KEYS.batches, [])
 }
+// カルーセル画像(base64 PNG)はサイズが大きく、そのまま保存するとlocalStorageの容量上限に
+// 達して書き込みが失敗する(QuotaExceededError)。バッチの用途は重複回避履歴の復元とNOTE/Threadsの
+// ネタ元選択(テーマ・タイトル・切り口のみ使用)のため、画像は保存前に取り除く。
+// 画像そのものはこのセッション中のReact state・ZIPダウンロードから取得できるため影響はない。
+function stripImagesForStorage(batch: GenerationBatch): GenerationBatch {
+  return {
+    ...batch,
+    posts: batch.posts.map((p) => ({
+      ...p,
+      slides: p.slides.map((s) => {
+        const { imageDataUrl, ...rest } = s
+        return rest
+      })
+    }))
+  }
+}
+
 export function saveBatch(batch: GenerationBatch) {
   const cur = getBatches()
   const idx = cur.findIndex((b) => b.printDate === batch.printDate && b.printRun === batch.printRun)
-  if (idx >= 0) cur[idx] = batch
-  else cur.push(batch)
-  writeJson(KEYS.batches, cur)
+  const lightBatch = stripImagesForStorage(batch)
+  if (idx >= 0) cur[idx] = lightBatch
+  else cur.push(lightBatch)
+  try {
+    writeJson(KEYS.batches, cur)
+  } catch {
+    // それでも容量超過する場合は、古いバッチから間引いて再試行する(履歴・ネタ元選択を優先)。
+    const trimmed = cur.slice(-10)
+    try {
+      writeJson(KEYS.batches, trimmed)
+    } catch {
+      // 保存を諦めてもアプリ全体は止めない(重複回避履歴・ネタ元選択が今回分のみ効かなくなる程度に留める)。
+    }
+  }
 }
 
 // ---------- 打ち出し回カウンター（日付ごと） ----------
@@ -235,6 +274,40 @@ export function getNextPrintRun(printDate: string): number {
   return next
 }
 
+
+// ---------- NOTE／Threads下書き生成 ----------
+export function getNoteThreadsHistory(): NoteThreadsHistoryEntry[] {
+  return readJson<NoteThreadsHistoryEntry[]>(KEYS.noteThreadsHistory, [])
+}
+export function appendNoteThreadsHistory(entries: NoteThreadsHistoryEntry[]) {
+  const cur = getNoteThreadsHistory()
+  writeJson(KEYS.noteThreadsHistory, [...cur, ...entries])
+}
+export function resetNoteThreadsHistory() {
+  writeJson(KEYS.noteThreadsHistory, [])
+}
+
+export function getNoteDrafts(): NoteDraft[] {
+  return readJson<NoteDraft[]>(KEYS.noteDrafts, [])
+}
+export function saveNoteDraft(draft: NoteDraft) {
+  const cur = getNoteDrafts()
+  const idx = cur.findIndex((d) => d.id === draft.id)
+  if (idx >= 0) cur[idx] = draft
+  else cur.push(draft)
+  writeJson(KEYS.noteDrafts, cur)
+}
+
+export function getThreadsDrafts(): ThreadsDraft[] {
+  return readJson<ThreadsDraft[]>(KEYS.threadsDrafts, [])
+}
+export function saveThreadsDraft(draft: ThreadsDraft) {
+  const cur = getThreadsDrafts()
+  const idx = cur.findIndex((d) => d.id === draft.id)
+  if (idx >= 0) cur[idx] = draft
+  else cur.push(draft)
+  writeJson(KEYS.threadsDrafts, cur)
+}
 
 // ---------- 旧MVP互換（旧ファイルがGitHubに残っていてもビルドを落とさないため） ----------
 export function getPhotos(): PhotoAsset[] {

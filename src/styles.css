@@ -308,3 +308,62 @@ textarea.prompt-box {
   color: #fff;
   text-shadow: 0 0 3px rgba(0,0,0,0.6);
 }
+
+/* ---------- NOTE／Threadsタブ共通 ---------- */
+.mini-btn.active {
+  background: linear-gradient(120deg, var(--brand-to), #a9dcb2);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.source-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.source-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #fafffa;
+  cursor: pointer;
+  font-family: inherit;
+}
+.source-option:hover { border-color: #a9dcb2; }
+.source-option.active {
+  border-color: #8fd39c;
+  background: #eef8ef;
+}
+.source-option-title { font-size: 13.5px; font-weight: 600; color: var(--text-main); }
+
+.note-body-preview {
+  font-size: 13px;
+  color: var(--text-main);
+  white-space: pre-wrap;
+  max-height: 480px;
+  overflow-y: auto;
+  background: #fafffa;
+  border-radius: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  line-height: 1.7;
+  margin-top: 8px;
+}
+
+.note-image-preview {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.note-image-preview img {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  display: block;
+}
