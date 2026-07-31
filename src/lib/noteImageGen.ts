@@ -8,51 +8,120 @@
 
 import { Theme } from '../types'
 
-interface MotifSpec {
-  motif: string
+interface MotifGroup {
+  motifs: string[]
   colorTone: string
 }
 
-// テーマ別の感情トーン分類(仕様書1.3のマッピング表)に基づくモチーフ・色調
-const themeMotif: Record<Theme, MotifSpec> = {
+// テーマ別の感情トーン分類(仕様書1.3のマッピング表)に基づくモチーフ群・色調。
+// 同じテーマでも生成のたびに違う画像になるよう、モチーフは複数バリエーションから毎回ランダムに選ぶ。
+const themeMotifGroups: Record<Theme, MotifGroup> = {
   健康: {
-    motif: 'a clear blue sky meeting the sea at a calm horizon, wide open composition with scattered clouds',
+    motifs: [
+      'a clear blue sky meeting a calm sea at the horizon, gentle waves catching sunlight',
+      'a wide-open blue sky with a few scattered white clouds, seen from a cliff overlooking the ocean',
+      'sunlight sparkling on the surface of calm turquoise sea water near the shoreline',
+      'a deep blue sky with slow-moving cirrus clouds, vast and open, taken looking upward',
+      'a coastal scene with blue sky, calm sea, and a solitary distant sailboat'
+    ],
     colorTone: 'clean, saturated blue tones, bright and clear'
   },
   人間関係: {
-    motif: 'a sunset over the sea with birds in silhouette, or a soft cloud sea glowing with warm light',
+    motifs: [
+      'a warm sunset over the ocean, with a few birds flying in silhouette across the sky',
+      'a golden-hour sky reflected on wet sand at low tide, warm orange and pink hues',
+      'a sea of clouds glowing orange and pink at sunset, seen from a mountain ridge',
+      'the sun setting behind distant hills, warm light spilling across a layer of clouds',
+      'a twilight sky over calm water, soft gradient from deep pink to pale orange'
+    ],
     colorTone: 'warm orange-to-pink gradient, emotional and gentle'
   },
   お金: {
-    motif: 'soft sunlight breaking through a layer of clouds, gentle lens flare, airy open sky',
+    motifs: [
+      'soft sunbeams breaking through a layer of clouds, gentle lens flare, seen from below',
+      'a bright sky with clouds parting to reveal warm light, airy and open composition',
+      'morning light filtering through thin clouds over a quiet open field, soft haze',
+      'a pastel sky just after sunrise, thin clouds catching the first light',
+      'sunlight diffusing through mist above a calm landscape, dreamlike softness'
+    ],
     colorTone: 'delicate white-to-pink gradient, soft and luminous'
   },
   使命: {
-    motif: 'soft sunlight breaking through a layer of clouds, gentle lens flare, airy open sky',
+    motifs: [
+      'soft sunbeams breaking through a layer of clouds, gentle lens flare, seen from below',
+      'a bright sky with clouds parting to reveal warm light, airy and open composition',
+      'morning light filtering through thin clouds over a quiet open field, soft haze',
+      'a pastel sky just after sunrise, thin clouds catching the first light',
+      'sunlight diffusing through mist above a calm landscape, dreamlike softness'
+    ],
     colorTone: 'delicate white-to-pink gradient, soft and luminous'
   },
   ご縁: {
-    motif: 'a macro close-up photograph of flower petals, such as hydrangea, with soft shallow depth of field',
+    motifs: [
+      'a macro photograph of hydrangea petals with soft bokeh in the background',
+      'a close-up of dew drops on a flower petal in early morning light, shallow depth of field',
+      'a macro shot of cherry blossom petals against a soft blurred background',
+      'a close-up photograph of lavender stems swaying gently, soft blurred background',
+      'a macro image of a single wildflower with soft natural light, blurred green backdrop'
+    ],
     colorTone: 'pastel purple-to-blue-to-pink tones, delicate and soft'
   },
   瞑想: {
-    motif: 'a macro close-up photograph of flower petals, such as hydrangea, with soft shallow depth of field',
+    motifs: [
+      'a macro photograph of hydrangea petals with soft bokeh in the background',
+      'a close-up of dew drops on a flower petal in early morning light, shallow depth of field',
+      'a macro shot of cherry blossom petals against a soft blurred background',
+      'a close-up photograph of lavender stems swaying gently, soft blurred background',
+      'a macro image of a single wildflower with soft natural light, blurred green backdrop'
+    ],
     colorTone: 'pastel purple-to-blue-to-pink tones, delicate and soft'
   },
   無料診断: {
-    motif: 'soft sunlight breaking through a layer of clouds, gentle lens flare, airy open sky',
+    motifs: [
+      'soft sunbeams breaking through a layer of clouds, gentle lens flare, seen from below',
+      'a bright sky with clouds parting to reveal warm light, airy and open composition',
+      'morning light filtering through thin clouds over a quiet open field, soft haze',
+      'a pastel sky just after sunrise, thin clouds catching the first light',
+      'sunlight diffusing through mist above a calm landscape, dreamlike softness'
+    ],
     colorTone: 'delicate white-to-pink gradient, soft and luminous'
   }
 }
 
+// 光の当たり方・構図もランダムに組み合わせ、モチーフが同じでも見え方が変わるようにする
+const lightingVariations = [
+  'early morning light',
+  'late afternoon light',
+  'soft overcast diffused light',
+  'golden hour light',
+  'gentle midday haze'
+]
+
+const compositionVariations = [
+  'wide open composition with generous negative space on one side',
+  'centered symmetrical composition',
+  'off-center rule-of-thirds composition',
+  'close crop with shallow depth of field',
+  'a slightly elevated vantage point looking down'
+]
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
 export function buildNoteImagePrompt(theme: Theme, noteTitle: string, displayName: string, title: string): string {
-  const { motif, colorTone } = themeMotif[theme] || themeMotif.健康
+  const group = themeMotifGroups[theme] || themeMotifGroups.健康
+  const motif = pickRandom(group.motifs)
+  const lighting = pickRandom(lightingVariations)
+  const composition = pickRandom(compositionVariations)
   return [
     'A real photograph used as a header image for a Japanese wellness NOTE article, in the style of free stock nature photography (the kind found in note.com photo galleries).',
     'Style: photorealistic, real photography, natural documentary photo. This must look like an actual photograph, not an illustration.',
     `Motif: ${motif}.`,
-    `Color and tone: ${colorTone}.`,
-    'Texture: soft natural light, soft focus, gentle film-like desaturated grade, generous negative space, calm and understated composition, not overly vivid or artificial.',
+    `Lighting: ${lighting}.`,
+    `Composition: ${composition}.`,
+    `Color and tone: ${group.colorTone}.`,
+    'Texture: soft focus, gentle film-like desaturated grade, calm and understated mood, not overly vivid or artificial.',
     'Strictly no text, no letters, no logos, no watermarks, no illustration, no anime, no cartoon, no vector art, no icon-style graphics, no 3D render. Do not depict any human face or portrait.',
     '16:9 landscape composition suitable as a magazine/blog article header photo.'
   ].join(' ')
